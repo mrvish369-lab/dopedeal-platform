@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npx vite:*)",
+      "Bash(node_modules\\\\.bin\\\\vite build:*)",
+      "Bash(./node_modules/.bin/vite build:*)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" status --short)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" rev-parse --show-toplevel)",
+      "Bash(git init:*)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" add src/ tailwind.config.ts package.json package-lock.json index.html tsconfig.json tsconfig.app.json tsconfig.node.json postcss.config.js eslint.config.js vite.config.ts components.json supabase/ public/ .gitignore README.md)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" config user.email \"growthgurukul@dopedeal.store\")",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" config user.name \"GrowthGurukul-ux\")",
+      "Bash(git -C /c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main commit -m ':*)",
+      "Bash(gh repo:*)",
+      "Bash(gh auth:*)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" remote add origin https://github.com/mrvish369-lab/dopedeal-platform.git)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" branch -M main)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" push -u origin main)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" add .claude/ bun.lock bun.lockb playwright-fixture.ts playwright.config.ts vitest.config.ts)"
+    ]
+  }
+}
