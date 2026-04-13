@@ -1,0 +1,4 @@
+project_id = "oyvumfznbsidngombidu"
+
+[functions.extract-offer-details]
+verify_jwt = false

@@ -1,0 +1,428 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+
+/* Shimmer animation for lazy loading */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+}
+@tailwind components;
+@tailwind utilities;
+
+/* DopeDeal Design System - Bold, High-Energy Gamification */
+
+@layer base {
+  :root {
+    /* Dark theme by default for gaming feel */
+    --background: 240 10% 6%;
+    --foreground: 0 0% 98%;
+
+    /* Electric Coral/Orange - Primary Brand */
+    --primary: 16 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* WhatsApp Green - Secondary/Success */
+    --secondary: 142 70% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Cards with slight transparency */
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Muted for secondary text */
+    --muted: 240 5% 26%;
+    --muted-foreground: 240 5% 65%;
+
+    /* Accent - Electric Purple */
+    --accent: 270 95% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Failure Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border and inputs */
+    --border: 240 5% 20%;
+    --input: 240 5% 20%;
+    --ring: 16 100% 60%;
+
+    --radius: 0.75rem;
+
+    /* Custom DopeDeal tokens */
+    --glow-primary: 16 100% 60%;
+    --glow-secondary: 142 70% 45%;
+    --glow-accent: 270 95% 65%;
+    
+    /* Gradients */
+    --gradient-fire: linear-gradient(135deg, hsl(16 100% 60%), hsl(45 100% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(142 70% 45%), hsl(160 80% 50%));
+    --gradient-party: linear-gradient(135deg, hsl(270 95% 65%), hsl(320 90% 60%), hsl(16 100% 60%));
+
+    /* Sidebar */
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 16 100% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 5% 20%;
+    --sidebar-ring: 16 100% 60%;
+
+    /* Geo Intelligence Map marker colors */
+    --map-high: 142 70% 45%;
+    --map-medium: 45 100% 50%;
+    --map-low: 0 84% 60%;
+
+    /* DopeDeal v2 — Brand light theme tokens */
+    --brand-green: #00C853;
+    --brand-green-light: #69F0AE;
+    --brand-green-dim: #00A846;
+    --brand-forest: #003D1F;
+    --brand-forest-mid: #005C2E;
+    --brand-teal: #00BFA5;
+    --brand-bg: #F7FAF8;
+    --brand-surface: #FFFFFF;
+    --brand-border: #D4EAE0;
+  }
+
+  /* Leaflet MarkerCluster custom styles */
+  .custom-cluster-icon {
+    background: transparent;
+  }
+
+  .cluster-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 700;
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary));
+    border: 3px solid hsl(var(--background));
+    box-shadow: 0 4px 12px hsl(var(--foreground) / 0.25);
+  }
+
+  .cluster-small {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .cluster-medium {
+    width: 42px;
+    height: 42px;
+    font-size: 14px;
+  }
+
+  .cluster-large {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 6%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 6%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 6%;
+
+    --primary: 16 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 142 70% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 40%;
+
+    --accent: 270 95% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 5% 90%;
+    --input: 240 5% 90%;
+    --ring: 16 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Glassmorphism utilities */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    background: hsl(var(--card) / 0.6);
+    border: 1px solid hsl(var(--foreground) / 0.1);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(20px) saturate(200%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.4) 0%,
+      hsl(var(--card) / 0.2) 100%
+    );
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    box-shadow: 
+      0 8px 32px hsl(var(--background) / 0.4),
+      inset 0 1px 0 hsl(var(--foreground) / 0.05);
+  }
+
+  .glass-card:hover {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.5) 0%,
+      hsl(var(--card) / 0.3) 100%
+    );
+    border-color: hsl(var(--foreground) / 0.15);
+    box-shadow: 
+      0 16px 48px hsl(var(--background) / 0.5),
+      inset 0 1px 0 hsl(var(--foreground) / 0.08);
+  }
+
+  .glass-button {
+    backdrop-filter: blur(12px);
+    background: hsl(var(--foreground) / 0.1);
+    border: 1px solid hsl(var(--foreground) / 0.15);
+    transition: all 0.3s ease;
+  }
+
+  .glass-button:hover {
+    background: hsl(var(--foreground) / 0.15);
+    border-color: hsl(var(--foreground) / 0.25);
+    transform: translateY(-2px);
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.4),
+                0 0 40px hsl(var(--glow-primary) / 0.2),
+                0 0 60px hsl(var(--glow-primary) / 0.1);
+  }
+
+  .glow-secondary {
+    box-shadow: 0 0 20px hsl(var(--glow-secondary) / 0.4),
+                0 0 40px hsl(var(--glow-secondary) / 0.2);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px hsl(var(--glow-accent) / 0.4),
+                0 0 40px hsl(var(--glow-accent) / 0.2);
+  }
+
+  /* Fire button gradient */
+  .btn-fire {
+    background: linear-gradient(135deg, hsl(16 100% 60%), hsl(45 100% 50%));
+    @apply text-white font-bold shadow-lg transition-all duration-300;
+  }
+
+  .btn-fire:hover {
+    background: linear-gradient(135deg, hsl(16 100% 65%), hsl(45 100% 55%));
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 30px hsl(16 100% 50% / 0.4);
+  }
+
+  /* Success gradient */
+  .btn-success {
+    background: linear-gradient(135deg, hsl(142 70% 45%), hsl(160 80% 50%));
+    @apply text-white font-bold shadow-lg transition-all duration-300;
+  }
+
+  /* Category cards */
+  .category-card {
+    @apply relative overflow-hidden rounded-2xl bg-card border border-border p-6 cursor-pointer;
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .category-card:hover {
+    @apply border-primary;
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 40px hsl(var(--primary) / 0.2);
+  }
+
+  /* Animated background gradient */
+  .bg-animated-gradient {
+    background: linear-gradient(-45deg, 
+      hsl(240 10% 6%), 
+      hsl(240 15% 10%), 
+      hsl(270 20% 12%), 
+      hsl(240 10% 8%)
+    );
+    background-size: 400% 400%;
+    animation: gradient-shift 15s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Celebration confetti animation */
+  .confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 100;
+  }
+
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    animation: confetti-fall 3s ease-out forwards;
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      transform: translateY(-100vh) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  /* Pulse animation for CTAs */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.6),
+                  0 0 60px hsl(var(--primary) / 0.4);
+    }
+  }
+
+  /* Quiz option hover */
+  .quiz-option {
+    @apply relative p-4 rounded-xl border-2 border-border bg-card cursor-pointer;
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .quiz-option:hover {
+    @apply border-primary bg-primary/10;
+  }
+
+  .quiz-option.selected {
+    @apply border-primary bg-primary/20;
+  }
+
+  /* Shake animation for wrong answer */
+  .shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
+  }
+
+  /* Slide up animation */
+  .slide-up {
+    animation: slide-up 0.5s ease-out forwards;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Scale in animation */
+  .scale-in {
+    animation: scale-in 0.4s ease-out forwards;
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Bounce animation */
+  .bounce-in {
+    animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  }
+
+  @keyframes bounce-in {
+    from {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+@layer utilities {
+  .text-gradient-fire {
+    background: linear-gradient(135deg, hsl(16 100% 60%), hsl(45 100% 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-success {
+    background: linear-gradient(135deg, hsl(142 70% 45%), hsl(160 80% 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-party {
+    background: linear-gradient(135deg, hsl(270 95% 65%), hsl(320 90% 60%), hsl(16 100% 60%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}

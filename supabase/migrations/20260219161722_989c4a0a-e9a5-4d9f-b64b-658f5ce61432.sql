@@ -1,0 +1,1 @@
+ALTER TABLE public.offer_cards ADD COLUMN video_url text;
