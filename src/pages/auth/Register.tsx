@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Phone, Shield, CheckCircle, User, MapPin } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, ArrowLeft, Mail, Shield, CheckCircle, User, MapPin, Phone } from "lucide-react";
 import { useAuth, toE164 } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,20 +14,27 @@ export default function Register() {
   const { sendOtp, verifyOtp } = useAuth();
 
   const [step, setStep] = useState<Step>("details");
-  const [form, setForm] = useState({ fullName: "", phone: "", city: "", referralCode: refCode });
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    city: "",
+    referralCode: refCode,
+  });
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  // ── Step 1: Send OTP ─────────────────────────────────────────────────────
+  // ── Step 1: Validate & Send OTP ──────────────────────────────────────────
   const handleSendOtp = async () => {
     setError(null);
     if (!form.fullName.trim()) return setError("Please enter your full name");
-    if (!/^\d{10}$/.test(form.phone.replace(/\s/g, ""))) return setError("Enter a valid 10-digit mobile number");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      return setError("Enter a valid email address");
     setLoading(true);
-    const { error: err } = await sendOtp(form.phone);
+    const { error: err } = await sendOtp(form.email.trim().toLowerCase());
     setLoading(false);
     if (err) return setError(err);
     setStep("otp");
@@ -36,19 +43,20 @@ export default function Register() {
   // ── Step 2: Verify OTP & save profile ────────────────────────────────────
   const handleVerifyOtp = async () => {
     setError(null);
-    if (otp.length < 4) return setError("Enter the OTP sent to your mobile");
+    if (otp.length < 6) return setError("Enter the 6-digit OTP sent to your email");
     setLoading(true);
 
-    const { error: err } = await verifyOtp(form.phone, otp);
+    const { error: err } = await verifyOtp(form.email.trim().toLowerCase(), otp);
     if (err) { setLoading(false); return setError(err); }
 
-    // Upsert profile with form data
+    // Upsert full profile with collected form data
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase.from("dd_user_profiles").upsert({
         user_id: user.id,
         full_name: form.fullName.trim(),
-        phone: toE164(form.phone),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone ? toE164(form.phone) : null,
         city: form.city.trim() || null,
       }, { onConflict: "user_id" });
 
@@ -126,7 +134,16 @@ export default function Register() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Mobile Number *</label>
+                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Email Address * <span className="text-brand-text-faint font-normal">(OTP will be sent here)</span></label>
+                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
+                    <Mail className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
+                    <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
+                      placeholder="you@example.com" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Mobile Number <span className="text-brand-text-faint font-normal">(optional)</span></label>
                   <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
                     <div className="flex items-center gap-1.5 px-3 py-2.5 border-r border-brand-border bg-brand-surface2">
                       <Phone className="w-3.5 h-3.5 text-gray-400" />
@@ -147,7 +164,7 @@ export default function Register() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Referral Code (optional)</label>
+                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Referral Code <span className="text-brand-text-faint font-normal">(optional)</span></label>
                   <input type="text" value={form.referralCode} onChange={(e) => set("referralCode", e.target.value.toUpperCase())}
                     placeholder="DOPE-XXXX" className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
                 </div>
@@ -156,7 +173,7 @@ export default function Register() {
 
                 <button onClick={handleSendOtp} disabled={loading}
                   className="w-full bg-brand-green hover:bg-brand-green-dim text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
-                  {loading ? "Sending OTP..." : <><span>Send OTP</span><ArrowRight className="w-4 h-4" /></>}
+                  {loading ? "Sending OTP..." : <><span>Send OTP to Email</span><ArrowRight className="w-4 h-4" /></>}
                 </button>
               </div>
 
@@ -174,26 +191,28 @@ export default function Register() {
               <div className="w-12 h-12 rounded-2xl bg-brand-green/10 flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-brand-green" />
               </div>
-              <h2 className="font-display font-extrabold text-xl text-brand-forest mb-1">Verify Mobile</h2>
-              <p className="text-sm text-brand-text-dim mb-6">
-                OTP sent to <span className="font-semibold">+91 {form.phone}</span>
+              <h2 className="font-display font-extrabold text-xl text-brand-forest mb-1">Check Your Email</h2>
+              <p className="text-sm text-brand-text-dim mb-1">
+                OTP sent to <span className="font-semibold">{form.email}</span>
               </p>
+              <p className="text-xs text-brand-text-faint mb-6">Check your inbox (and spam folder). Valid for 10 minutes.</p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Enter OTP</label>
+                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Enter 6-digit OTP</label>
                   <input
                     type="text" inputMode="numeric" value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="• • • • • •"
                     className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] focus:outline-none focus:border-brand-green"
                     maxLength={6}
+                    autoFocus
                   />
                 </div>
 
                 {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>}
 
-                <button onClick={handleVerifyOtp} disabled={loading || otp.length < 4}
+                <button onClick={handleVerifyOtp} disabled={loading || otp.length < 6}
                   className="w-full bg-brand-green hover:bg-brand-green-dim text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
                   {loading ? "Verifying..." : <><span>Verify & Continue</span><ArrowRight className="w-4 h-4" /></>}
                 </button>

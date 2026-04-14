@@ -15,9 +15,9 @@ interface AuthContextType {
   loading: boolean;
   wallet: WalletBalances | null;
   isVerified: boolean;
-  // Phone OTP auth
-  sendOtp: (phone: string) => Promise<{ error: string | null }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: string | null }>;
+  // Email OTP auth (free — no SMS provider needed)
+  sendOtp: (email: string) => Promise<{ error: string | null }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshWallet: () => Promise<void>;
 }
@@ -95,20 +95,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsVerified(data?.status === "approved");
   };
 
-  /** Send SMS OTP — requires Phone provider enabled in Supabase Auth settings */
-  const sendOtp = async (phone: string): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: toE164(phone),
-    });
+  /** Send email OTP — uses Supabase built-in email (free, no SMS provider needed) */
+  const sendOtp = async (email: string): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.signInWithOtp({ email });
     return { error: error?.message ?? null };
   };
 
-  /** Verify OTP returned by SMS */
-  const verifyOtp = async (phone: string, token: string): Promise<{ error: string | null }> => {
+  /** Verify OTP from email */
+  const verifyOtp = async (email: string, token: string): Promise<{ error: string | null }> => {
     const { data, error } = await supabase.auth.verifyOtp({
-      phone: toE164(phone),
+      email,
       token,
-      type: "sms",
+      type: "email",
     });
     if (error) return { error: error.message };
 
@@ -123,9 +121,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!existing) {
         await supabase.from("dd_user_profiles").insert({
           user_id: data.user.id,
-          phone: toE164(phone),
+          email: data.user.email,
           full_name: data.user.user_metadata?.full_name ?? null,
           city: data.user.user_metadata?.city ?? null,
+          phone: data.user.user_metadata?.phone ?? null,
         });
       }
     }
