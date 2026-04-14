@@ -72,7 +72,7 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="flex-1 py-2.5 px-3 text-sm focus:outline-none"
+                      className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none"
                       onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                       autoFocus
                     />
@@ -113,7 +113,7 @@ export default function Login() {
                   type="text" inputMode="numeric" value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="• • • • • •"
-                  className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] focus:outline-none focus:border-brand-green"
+                  className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] text-gray-900 bg-white focus:outline-none focus:border-brand-green"
                   maxLength={6}
                   onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
                   autoFocus

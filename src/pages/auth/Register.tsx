@@ -129,7 +129,7 @@ export default function Register() {
                   <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
                     <User className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
                     <input type="text" value={form.fullName} onChange={(e) => set("fullName", e.target.value)}
-                      placeholder="Rahul Kumar" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
+                      placeholder="Rahul Kumar" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" />
                   </div>
                 </div>
 
@@ -138,7 +138,7 @@ export default function Register() {
                   <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
                     <Mail className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
                     <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
-                      placeholder="you@example.com" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
+                      placeholder="you@example.com" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" />
                   </div>
                 </div>
 
@@ -150,7 +150,7 @@ export default function Register() {
                       <span className="text-sm font-semibold text-brand-text-dim">+91</span>
                     </div>
                     <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="9876543210" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" maxLength={10} />
+                      placeholder="9876543210" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" maxLength={10} />
                   </div>
                 </div>
 
@@ -159,14 +159,14 @@ export default function Register() {
                   <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
                     <MapPin className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
                     <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
-                      placeholder="Mumbai" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
+                      placeholder="Mumbai" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Referral Code <span className="text-brand-text-faint font-normal">(optional)</span></label>
                   <input type="text" value={form.referralCode} onChange={(e) => set("referralCode", e.target.value.toUpperCase())}
-                    placeholder="DOPE-XXXX" className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
+                    placeholder="DOPE-XXXX" className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green" />
                 </div>
 
                 {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>}
@@ -204,7 +204,7 @@ export default function Register() {
                     type="text" inputMode="numeric" value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="• • • • • •"
-                    className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] focus:outline-none focus:border-brand-green"
+                    className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] text-gray-900 bg-white focus:outline-none focus:border-brand-green"
                     maxLength={6}
                     autoFocus
                   />

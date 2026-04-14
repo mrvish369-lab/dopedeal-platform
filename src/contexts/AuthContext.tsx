@@ -95,36 +95,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsVerified(data?.status === "approved");
   };
 
-  /** Send email OTP — uses Supabase built-in email (free, no SMS provider needed) */
+  /** Send email OTP via Edge Function → Resend API (bypasses Supabase SMTP entirely) */
   const sendOtp = async (email: string): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    return { error: error?.message ?? null };
-  };
-
-  /** Verify OTP from email */
-  const verifyOtp = async (email: string, token: string): Promise<{ error: string | null }> => {
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "email",
+    const { data, error } = await supabase.functions.invoke("send-otp", {
+      body: { email },
     });
     if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    return { error: null };
+  };
 
-    // Auto-create user profile row if first sign-in
-    if (data.user) {
+  /** Verify OTP via Edge Function, then create real Supabase session */
+  const verifyOtp = async (email: string, otp: string): Promise<{ error: string | null }> => {
+    const { data, error } = await supabase.functions.invoke("verify-otp", {
+      body: { email, otp },
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+
+    // Use the hashed token from the edge function to create a real client session
+    const { error: sessionError } = await supabase.auth.verifyOtp({
+      token_hash: data.token_hash,
+      type: "email",
+    });
+    if (sessionError) return { error: sessionError.message };
+
+    // Auto-create profile row if first sign-in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
       const { data: existing } = await supabase
         .from("dd_user_profiles")
         .select("id")
-        .eq("user_id", data.user.id)
+        .eq("user_id", user.id)
         .single();
 
       if (!existing) {
         await supabase.from("dd_user_profiles").insert({
-          user_id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name ?? null,
-          city: data.user.user_metadata?.city ?? null,
-          phone: data.user.user_metadata?.phone ?? null,
+          user_id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name ?? null,
+          city: user.user_metadata?.city ?? null,
+          phone: user.user_metadata?.phone ?? null,
         });
       }
     }
