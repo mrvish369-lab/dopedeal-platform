@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet, Share2, ShoppingBag, Users, BarChart3, LogOut,
-  Menu, X, Bell, ChevronRight, BadgeCheck, Lock, UserCircle
+  Menu, X, Bell, ChevronRight, BadgeCheck, Lock, UserCircle, Trophy
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -46,6 +46,12 @@ const navItems = [
     icon: <UserCircle className="w-5 h-5" />,
     label: "Profile",
     desc: "Verification & social handle",
+  },
+  {
+    path: "/dashboard/leaderboard",
+    icon: <Trophy className="w-5 h-5" />,
+    label: "Leaderboard",
+    desc: "Top earners this week",
   },
 ];
 
@@ -181,6 +187,7 @@ function DashboardOverview() {
     { to: "/dashboard/deal-sell", icon: "🎟️", title: "Get Coupon Codes", desc: "Generate coupons & earn commission per sale", label: "DealSell" },
     { to: "/dashboard/referral", icon: "🤝", title: "Refer & Earn", desc: "Share your code, earn 10% of their earnings", label: "Referral" },
     { to: "/dashboard/wallet", icon: "💸", title: "Request Payout", desc: "Withdraw earnings to UPI or bank account", label: "Wallet" },
+    { to: "/dashboard/leaderboard", icon: "🏆", title: "Leaderboard", desc: "See top earners and climb the ranks", label: "Ranks" },
   ];
 
   return (
