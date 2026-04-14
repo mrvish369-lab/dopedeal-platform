@@ -95,12 +95,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsVerified(data?.status === "approved");
   };
 
+  /** Extract the real error body from a Supabase FunctionsHttpError */
+  const extractFnError = async (error: unknown): Promise<string> => {
+    try {
+      const ctx = (error as { context?: Response })?.context;
+      if (ctx?.json) {
+        const body = await ctx.json();
+        if (body?.error) return body.error;
+      }
+    } catch {}
+    return (error as Error)?.message ?? "Something went wrong. Please try again.";
+  };
+
   /** Send email OTP via Edge Function → Resend API (bypasses Supabase SMTP entirely) */
   const sendOtp = async (email: string): Promise<{ error: string | null }> => {
     const { data, error } = await supabase.functions.invoke("send-otp", {
       body: { email },
     });
-    if (error) return { error: error.message };
+    if (error) return { error: await extractFnError(error) };
     if (data?.error) return { error: data.error };
     return { error: null };
   };
@@ -110,7 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data, error } = await supabase.functions.invoke("verify-otp", {
       body: { email, otp },
     });
-    if (error) return { error: error.message };
+    if (error) return { error: await extractFnError(error) };
     if (data?.error) return { error: data.error };
 
     // Use the hashed token from the edge function to create a real client session
@@ -137,6 +149,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           city: user.user_metadata?.city ?? null,
           phone: user.user_metadata?.phone ?? null,
         });
+        // Send welcome email for new users (fire-and-forget)
+        supabase.functions.invoke("send-email", {
+          body: {
+            type: "welcome",
+            to: user.email,
+            name: user.user_metadata?.full_name ?? "there",
+          },
+        }).catch(() => {});
       }
     }
     return { error: null };

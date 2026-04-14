@@ -10,6 +10,7 @@ import { getActiveProducts } from "@/lib/db/products";
 import { getUserCoupons, generateCoupons } from "@/lib/db/coupons";
 import type { Product as DbProduct } from "@/lib/db/products";
 import type { UserCoupon } from "@/lib/db/coupons";
+import { sendCouponGeneratedEmail } from "@/lib/email";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CommissionTier {
@@ -401,6 +402,10 @@ export default function DealSell() {
     setCouponMap((prev) => ({ ...prev, [selectorProduct.id]: newCodes }));
     setRevealData({ codes: newCodes, product: selectorProduct });
     setSelectorProduct(null);
+    // Send confirmation email (fire-and-forget)
+    if (user?.email) {
+      sendCouponGeneratedEmail(user.email, user.user_metadata?.full_name ?? "there", selectorProduct.name, codes, commission);
+    }
   };
 
   const myProductIds = Object.keys(couponMap);

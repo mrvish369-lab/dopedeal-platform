@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { getTransactions, submitWithdrawalRequest } from "@/lib/db/wallet";
 import type { WalletTransaction } from "@/lib/db/wallet";
+import { sendWithdrawalRequestedEmail } from "@/lib/email";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PaymentMethod = "upi" | "bank";
@@ -30,10 +31,14 @@ const STATUS_PILL: Record<string, { bg: string; text: string }> = {
 function WithdrawForm({
   availableBalance,
   userId,
+  userEmail,
+  userName,
   onSuccess,
 }: {
   availableBalance: number;
   userId: string;
+  userEmail?: string;
+  userName?: string;
   onSuccess: () => void;
 }) {
   const MIN = 200;
@@ -73,6 +78,10 @@ function WithdrawForm({
     if (err) { setError(err); return; }
     setSubmitted(true);
     onSuccess();
+    // Send confirmation email (fire-and-forget)
+    if (userEmail) {
+      sendWithdrawalRequestedEmail(userEmail, userName ?? "there", amountNum, method);
+    }
   };
 
   if (submitted) {
@@ -392,6 +401,8 @@ export default function Wallet() {
               <WithdrawForm
                 availableBalance={available}
                 userId={user.id}
+                userEmail={user.email}
+                userName={user.user_metadata?.full_name}
                 onSuccess={refreshWallet}
               />
             )}

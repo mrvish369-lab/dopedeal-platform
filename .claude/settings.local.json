@@ -20,7 +20,21 @@
       "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" branch -M main)",
       "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" push -u origin main)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" add .claude/ bun.lock bun.lockb playwright-fixture.ts playwright.config.ts vitest.config.ts)"
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" add .claude/ bun.lock bun.lockb playwright-fixture.ts playwright.config.ts vitest.config.ts)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" push origin main)",
+      "Bash(git -C \"/c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main\" add .npmrc)",
+      "Bash(git -C /c/Users/sjdfr/Downloads/dopedeal-launchpad-main/dopedeal-launchpad-main commit -m 'fix: add .npmrc with legacy-peer-deps for Vercel build:*)",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__list_tables",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__list_projects",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__get_project_url",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__get_publishable_keys",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__apply_migration",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__execute_sql",
+      "Bash(grep -h \"useAuth\\\\|coins_balance\\\\|performDailyCheckin\\\\|checkinStatus\\\\|signUp\\\\|signIn\\\\b\" src/components/wallet/*.tsx src/components/auth/AuthModal.tsx src/components/offers/SuperDealsPreview.tsx)",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__deploy_edge_function",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__list_edge_functions",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__get_edge_function",
+      "mcp__ccf23fe7-4639-4f03-8e0d-5868802059ab__get_logs"
     ]
   }
 }
