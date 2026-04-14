@@ -16,6 +16,7 @@ import PocketMoney from "./pages/dashboard/PocketMoney";
 import DealSell from "./pages/dashboard/DealSell";
 import DashWallet from "./pages/dashboard/Wallet";
 import DashReferral from "./pages/dashboard/Referral";
+import DashProfile from "./pages/dashboard/Profile";
 
 // ── Legacy / secondary pages ────────────────────────────────────────────────
 import Start from "./pages/Start";
@@ -57,6 +58,8 @@ import UserManagement from "./pages/admin/UserManagement";
 import CoinSettings from "./pages/admin/CoinSettings";
 import Leads from "./pages/admin/Leads";
 import Products from "./pages/admin/Products";
+import VerificationQueue from "./pages/admin/VerificationQueue";
+import DealSellProducts from "./pages/admin/DealSellProducts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +99,7 @@ const App = () => (
               <Route path="deal-sell" element={<DealSell />} />
               <Route path="wallet" element={<DashWallet />} />
               <Route path="referral" element={<DashReferral />} />
+              <Route path="profile" element={<DashProfile />} />
             </Route>
 
             {/* ── Legacy / secondary routes ─────────────────────────── */}
@@ -119,6 +123,8 @@ const App = () => (
             <Route path="coin-settings" element={<CoinSettings />} />
             <Route path="leads" element={<Leads />} />
             <Route path="products" element={<Products />} />
+            <Route path="verification-queue" element={<VerificationQueue />} />
+            <Route path="dealsell-products" element={<DealSellProducts />} />
             <Route path="shops" element={<AdminShops />} />
             <Route path="shops/:shopId" element={<ShopDetail />} />
             <Route path="qr-codes" element={<AdminQRCodes />} />

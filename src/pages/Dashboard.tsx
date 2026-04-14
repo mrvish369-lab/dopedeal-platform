@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet, Share2, ShoppingBag, Users, BarChart3, LogOut,
-  Menu, X, Bell, ChevronRight, BadgeCheck, Lock
+  Menu, X, Bell, ChevronRight, BadgeCheck, Lock, UserCircle
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -40,6 +40,12 @@ const navItems = [
     icon: <Users className="w-5 h-5" />,
     label: "Referral",
     desc: "Invite & earn 10%",
+  },
+  {
+    path: "/dashboard/profile",
+    icon: <UserCircle className="w-5 h-5" />,
+    label: "Profile",
+    desc: "Verification & social handle",
   },
 ];
 
