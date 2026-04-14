@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -7,6 +7,8 @@ import {
   ChevronRight, Zap, Eye, ArrowRight, Info,
   AlertTriangle, IndianRupee,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getTasks, getUserSubmissions, uploadTaskProof, submitTaskProof } from "@/lib/db/tasks";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TaskPlatform = "instagram" | "facebook" | "whatsapp" | "youtube" | "twitter";
@@ -25,132 +27,6 @@ interface Task {
   submittedAt?: string;
   rejectionReason?: string;
 }
-
-// ── Mock tasks ────────────────────────────────────────────────────────────────
-const TASKS: Task[] = [
-  {
-    id: "t_ig_001",
-    platform: "instagram",
-    title: "Share DopeDeal on Instagram Feed",
-    description: "Post the provided creative on your Instagram feed with the required caption and tags.",
-    instructions: [
-      "Download the promo image from the kit link below",
-      "Post it on your Instagram feed (not story)",
-      "Use caption: 'Earn money by sharing deals 💸 @dopedeal.store #DopeDeal #EarnOnline'",
-      "Keep the post live for at least 7 days",
-      "Screenshot the post showing likes + your handle",
-    ],
-    payout: 80,
-    minFollowers: 500,
-    estimatedTime: "5 min",
-    status: "available",
-  },
-  {
-    id: "t_ig_002",
-    platform: "instagram",
-    title: "Post DopeDeal Story with Link Sticker",
-    description: "Share a 24-hr story using the DopeDeal story template with a link sticker.",
-    instructions: [
-      "Download the story template from the promo kit",
-      "Add the link sticker pointing to dopedeal.store",
-      "Tag @dopedeal.store in the story",
-      "Screenshot before posting showing the sticker",
-      "Screenshot after posting showing it on your profile",
-    ],
-    payout: 50,
-    minFollowers: 500,
-    estimatedTime: "3 min",
-    status: "available",
-  },
-  {
-    id: "t_ig_003",
-    platform: "instagram",
-    title: "Watch & Share DopeDeal Reel",
-    description: "Watch our latest reel, like it, comment, and share to your story.",
-    instructions: [
-      "Visit the DopeDeal Instagram page",
-      "Watch the latest reel completely (30 sec)",
-      "Like + Leave a genuine comment",
-      "Share the reel to your own story",
-      "Screenshot showing your comment and story share",
-    ],
-    payout: 30,
-    minFollowers: 500,
-    estimatedTime: "2 min",
-    status: "available",
-  },
-  {
-    id: "t_wa_001",
-    platform: "whatsapp",
-    title: "Share DopeDeal on WhatsApp Status",
-    description: "Post the DopeDeal promotional image as your WhatsApp status for 24 hours.",
-    instructions: [
-      "Download the WhatsApp status image from the promo kit",
-      "Post it as your WhatsApp status",
-      "Set visibility to 'My Contacts' or wider",
-      "Screenshot your status screen showing the post",
-      "Keep it active for at least 12 hours",
-    ],
-    payout: 40,
-    minFollowers: 200,
-    estimatedTime: "2 min",
-    status: "submitted",
-    submittedAt: "2026-04-14T06:00:00Z",
-  },
-  {
-    id: "t_fb_001",
-    platform: "facebook",
-    title: "Share DopeDeal Post on Facebook",
-    description: "Share the DopeDeal promotional post to your Facebook timeline.",
-    instructions: [
-      "Visit the DopeDeal Facebook page",
-      "Share our latest promotional post to your timeline",
-      "Add caption: 'Earning money from social media is real now 🔥 #DopeDeal'",
-      "Set post visibility to Public",
-      "Screenshot the shared post showing your name and the content",
-    ],
-    payout: 60,
-    minFollowers: 500,
-    estimatedTime: "3 min",
-    status: "available",
-  },
-  {
-    id: "t_yt_001",
-    platform: "youtube",
-    title: "Subscribe & Ring Bell on DopeDeal YT",
-    description: "Subscribe to the DopeDeal YouTube channel and enable all notifications.",
-    instructions: [
-      "Go to the DopeDeal YouTube channel",
-      "Click Subscribe button",
-      "Click the Bell icon and select 'All'",
-      "Like the latest video",
-      "Screenshot showing subscribed + bell active state",
-    ],
-    payout: 25,
-    minFollowers: 0,
-    estimatedTime: "2 min",
-    status: "approved",
-    submittedAt: "2026-04-13T10:00:00Z",
-  },
-  {
-    id: "t_tw_001",
-    platform: "twitter",
-    title: "Retweet DopeDeal Announcement",
-    description: "Retweet our latest announcement tweet with a personal comment.",
-    instructions: [
-      "Find the pinned tweet on @DopeDealStore",
-      "Quote retweet (not plain retweet)",
-      "Add your own comment: why you joined DopeDeal",
-      "Screenshot the quote tweet from your profile",
-    ],
-    payout: 35,
-    minFollowers: 500,
-    estimatedTime: "3 min",
-    status: "rejected",
-    submittedAt: "2026-04-13T09:00:00Z",
-    rejectionReason: "Screenshot was blurry and handle was not visible.",
-  },
-];
 
 // ── Platform config ───────────────────────────────────────────────────────────
 const PLATFORM: Record<TaskPlatform, { label: string; bg: string; Icon: React.FC<{ className?: string }> }> = {
@@ -174,15 +50,16 @@ const PLATFORM_FILTERS: Array<TaskPlatform | "all"> = ["all", "instagram", "what
 function TaskModal({ task, onClose, onSubmit }: {
   task: Task;
   onClose: () => void;
-  onSubmit: (taskId: string, file: File) => void;
+  onSubmit: (taskId: string, file: File) => Promise<void>;
 }) {
   const [step, setStep] = useState<"instructions" | "upload">("instructions");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { Icon, bg } = PLATFORM[task.platform];
+  const { Icon, bg } = PLATFORM[task.platform] ?? PLATFORM.instagram;
 
   const pickFile = (f: File) => {
     setFile(f);
@@ -194,8 +71,13 @@ function TaskModal({ task, onClose, onSubmit }: {
   const handleSubmit = async () => {
     if (!file) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    onSubmit(task.id, file);
+    setSubmitError(null);
+    try {
+      await onSubmit(task.id, file);
+    } catch {
+      setSubmitError("Upload failed. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -331,6 +213,13 @@ function TaskModal({ task, onClose, onSubmit }: {
                     <p>Fake or irrelevant screenshots may result in account suspension.</p>
                   </div>
 
+                  {submitError && (
+                    <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-100 rounded-xl p-3">
+                      <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <p>{submitError}</p>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleSubmit}
                     disabled={!file || submitting}
@@ -347,7 +236,7 @@ function TaskModal({ task, onClose, onSubmit }: {
                           animate={{ rotate: 360 }}
                           transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
                         />
-                        Submitting...
+                        Uploading...
                       </>
                     ) : (
                       <><Upload className="w-4 h-4" /> Submit for Review</>
@@ -365,7 +254,7 @@ function TaskModal({ task, onClose, onSubmit }: {
 
 // ── Task Card ─────────────────────────────────────────────────────────────────
 function TaskCard({ task, isVerified, onOpen }: { task: Task; isVerified: boolean; onOpen: () => void }) {
-  const { Icon, bg } = PLATFORM[task.platform];
+  const { Icon, bg } = PLATFORM[task.platform] ?? PLATFORM.instagram;
   const { bg: chipBg, text: chipText, label: chipLabel } = STATUS_CHIP[task.status];
   const isLocked = !isVerified && task.status === "available";
 
@@ -474,7 +363,7 @@ function MyTasksPanel({ tasks }: { tasks: Task[] }) {
       </div>
 
       {active.map((task) => {
-        const { Icon, bg } = PLATFORM[task.platform];
+        const { Icon, bg } = PLATFORM[task.platform] ?? PLATFORM.instagram;
         const { bg: chipBg, text: chipText, label: chipLabel } = STATUS_CHIP[task.status];
         return (
           <div key={task.id} className="bg-white border border-brand-border rounded-2xl p-4 flex items-center gap-3">
@@ -505,12 +394,38 @@ function MyTasksPanel({ tasks }: { tasks: Task[] }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PocketMoney() {
-  const isVerified = false; // wire to auth in production
+  const { user, isVerified } = useAuth();
 
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [tab, setTab] = useState<"browse" | "my-tasks">("browse");
   const [platformFilter, setPlatformFilter] = useState<TaskPlatform | "all">("all");
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getTasks(), getUserSubmissions(user.id)]).then(([dbTasks, submissions]) => {
+      const subMap = new Map(submissions.map((s) => [s.task_id, s]));
+      const merged: Task[] = dbTasks.map((t) => {
+        const sub = subMap.get(t.id);
+        return {
+          id: t.id,
+          platform: t.platform as TaskPlatform,
+          title: t.title,
+          description: t.description ?? "",
+          instructions: t.instructions,
+          payout: t.payout,
+          minFollowers: t.min_followers,
+          estimatedTime: t.estimated_time ?? "",
+          status: (sub?.status ?? "available") as TaskStatus,
+          submittedAt: sub?.submitted_at,
+          rejectionReason: sub?.review_note ?? undefined,
+        };
+      });
+      setTasks(merged);
+      setLoading(false);
+    });
+  }, [user]);
 
   const myTaskCount = tasks.filter((t) => t.status !== "available").length;
 
@@ -518,9 +433,18 @@ export default function PocketMoney() {
     platformFilter === "all" || t.platform === platformFilter
   );
 
-  const handleSubmit = (taskId: string, _file: File) => {
+  const handleSubmit = async (taskId: string, file: File) => {
+    if (!user) return;
+    const { url, error: uploadError } = await uploadTaskProof(user.id, taskId, file);
+    if (uploadError || !url) throw new Error(uploadError ?? "Upload failed");
+    const { error: submitError } = await submitTaskProof(user.id, taskId, url);
+    if (submitError) throw new Error(submitError);
     setTasks((prev) =>
-      prev.map((t) => t.id === taskId ? { ...t, status: "submitted" as TaskStatus, submittedAt: new Date().toISOString() } : t)
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, status: "submitted" as TaskStatus, submittedAt: new Date().toISOString() }
+          : t
+      )
     );
     setActiveTask(null);
   };
@@ -598,11 +522,23 @@ export default function PocketMoney() {
       )}
 
       {/* Content */}
-      {tab === "browse" ? (
+      {loading ? (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white border border-brand-border rounded-2xl h-48 animate-pulse" />
+          ))}
+        </div>
+      ) : tab === "browse" ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {filtered.map((task) => (
             <TaskCard key={task.id} task={task} isVerified={isVerified} onOpen={() => setActiveTask(task)} />
           ))}
+          {filtered.length === 0 && (
+            <div className="col-span-2 text-center py-14 text-gray-400">
+              <Zap className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium">No tasks available for this platform</p>
+            </div>
+          )}
         </div>
       ) : (
         <MyTasksPanel tasks={tasks} />

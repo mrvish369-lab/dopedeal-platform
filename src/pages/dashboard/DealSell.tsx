@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag, Lock, Copy, Check, TrendingUp, ChevronRight,
   Zap, Gift, ArrowRight, X
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { getActiveProducts } from "@/lib/db/products";
+import { getUserCoupons, generateCoupons } from "@/lib/db/coupons";
+import type { Product as DbProduct } from "@/lib/db/products";
+import type { UserCoupon } from "@/lib/db/coupons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface CommissionTier {
+  discountValue: 50 | 100 | 150;
+  baseCommission: number;
+}
+
 interface Product {
   id: string;
   emoji: string;
@@ -19,77 +29,82 @@ interface Product {
   sellers: number;
   redeemed: number;
   bg: string;
+  tiers: CommissionTier[];
+  coupons_per_user: number;
 }
 
 interface CouponCode {
   code: string;
   discountValue: number;
   status: "unused" | "redeemed" | "pending";
-  redeemedBy?: string;
-  redeemedAt?: string;
   commissionEarned?: number;
+  createdAt?: string;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const products: Product[] = [
-  {
-    id: "p1", emoji: "📚", name: "Social Media Growth Blueprint",
-    desc: "Complete step-by-step guide to grow any social media account from 0 to 10K+ in 90 days.",
-    price: 349, baseCommission: 150, minCoupon: 50, maxCoupon: 150,
-    sellers: 238, redeemed: 1204, bg: "from-brand-forest to-brand-forest-mid",
-  },
-  {
-    id: "p2", emoji: "🎨", name: "Canva Mastery Design Course",
-    desc: "Create stunning graphics, reels covers, and brand kits using Canva — even as a beginner.",
-    price: 299, baseCommission: 120, minCoupon: 50, maxCoupon: 100,
-    sellers: 156, redeemed: 834, bg: "from-[#1a1a2e] to-[#16213e]",
-  },
-  {
-    id: "p3", emoji: "📈", name: "Digital Marketing Starter Pack",
-    desc: "Master Facebook Ads, Instagram growth, and email marketing in one complete course.",
-    price: 499, baseCommission: 200, minCoupon: 50, maxCoupon: 150,
-    sellers: 412, redeemed: 2103, bg: "from-blue-900 to-blue-800",
-  },
-  {
-    id: "p4", emoji: "💡", name: "Freelancing Blueprint India",
-    desc: "Land your first freelance client in 30 days. Fiverr, Upwork, LinkedIn strategy included.",
-    price: 399, baseCommission: 160, minCoupon: 50, maxCoupon: 100,
-    sellers: 98, redeemed: 432, bg: "from-violet-800 to-purple-900",
-  },
+// ─── Static display config ────────────────────────────────────────────────────
+const EMOJIS = ["📚", "🎨", "📈", "💡", "🚀", "💻", "📊", "🎯"];
+const BG_GRADIENTS = [
+  "from-brand-forest to-brand-forest-mid",
+  "from-[#1a1a2e] to-[#16213e]",
+  "from-blue-900 to-blue-800",
+  "from-violet-800 to-purple-900",
+  "from-emerald-800 to-teal-900",
+  "from-rose-800 to-red-900",
 ];
 
-// Simulate user's already-generated coupons for demo
-const myCoupons: Record<string, CouponCode[]> = {
-  p1: [
-    { code: "DD-A3F9-50", discountValue: 50, status: "redeemed", redeemedBy: "Rahul S.", redeemedAt: "2 days ago", commissionEarned: 150 },
-    { code: "DD-B7K2-50", discountValue: 50, status: "redeemed", redeemedBy: "Priya M.", redeemedAt: "5 days ago", commissionEarned: 150 },
-    { code: "DD-C1M4-50", discountValue: 50, status: "unused" },
-    { code: "DD-D5P8-50", discountValue: 50, status: "unused" },
-    { code: "DD-E9Q2-50", discountValue: 50, status: "pending" },
-  ],
-};
+function mapDbProduct(p: DbProduct, idx: number): Product {
+  const tiers = (p.commission_tiers ?? []) as CommissionTier[];
+  const discounts = tiers.map((t) => t.discountValue);
+  const commissions = tiers.map((t) => t.baseCommission);
+  return {
+    id: p.id,
+    emoji: EMOJIS[idx % EMOJIS.length],
+    name: p.name,
+    desc: p.description ?? "",
+    price: p.price,
+    baseCommission: commissions.length ? Math.max(...commissions) : 150,
+    minCoupon: discounts.length ? Math.min(...discounts) : 50,
+    maxCoupon: discounts.length ? Math.max(...discounts) : 150,
+    sellers: p.used_coupons || 0,
+    redeemed: p.used_coupons || 0,
+    bg: BG_GRADIENTS[idx % BG_GRADIENTS.length],
+    tiers,
+    coupons_per_user: p.coupons_per_user ?? 5,
+  };
+}
 
-// Generate fake coupon codes for new assignments
-function generateCodes(count: number, discountValue: number): CouponCode[] {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: count }, () => {
-    const seg1 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const seg2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    return { code: `DD-${seg1}-${seg2}`, discountValue, status: "unused" };
-  });
+function mapDbCoupon(c: UserCoupon): CouponCode {
+  return {
+    code: c.code,
+    discountValue: c.discount_value,
+    status: c.status === "pending_verification" ? "pending" : c.status,
+    commissionEarned: c.status === "redeemed" ? c.commission : undefined,
+    createdAt: c.created_at,
+  };
 }
 
 // ─── Coupon value selector widget ────────────────────────────────────────────
 function CouponValueSelector({
-  product, onConfirm, onClose,
-}: { product: Product; onConfirm: (val: number, codes: CouponCode[]) => void; onClose: () => void }) {
+  product, onConfirm, onClose, generating,
+}: {
+  product: Product;
+  onConfirm: (val: number) => void;
+  onClose: () => void;
+  generating: boolean;
+}) {
   const [selected, setSelected] = useState(product.minCoupon);
 
-  const commission = product.baseCommission - selected;
+  const getTierCommission = (val: number) => {
+    const tier = product.tiers.find((t) => t.discountValue === val);
+    return tier ? tier.baseCommission : product.baseCommission - val;
+  };
+
+  const commission = getTierCommission(selected);
   const buyerPays  = product.price - selected;
 
-  const steps = [];
-  for (let v = product.minCoupon; v <= product.maxCoupon; v += 50) steps.push(v);
+  const steps = product.tiers.length > 0
+    ? product.tiers.map((t) => t.discountValue).sort((a, b) => a - b)
+    : Array.from({ length: Math.floor((product.maxCoupon - product.minCoupon) / 50) + 1 }, (_, i) => product.minCoupon + i * 50);
 
   return (
     <motion.div
@@ -117,7 +132,7 @@ function CouponValueSelector({
 
         <div className="grid grid-cols-3 gap-2 mb-5">
           {steps.map(v => {
-            const earn = product.baseCommission - v;
+            const earn = getTierCommission(v);
             return (
               <button key={v} onClick={() => setSelected(v)}
                 className={`rounded-2xl p-3 border-2 text-center transition-all ${
@@ -151,13 +166,21 @@ function CouponValueSelector({
           </div>
         </div>
 
-        <div className="text-xs text-brand-text-faint mb-4 text-center">You'll receive 5 exclusive coupon codes + complete Promo Kit</div>
+        <div className="text-xs text-brand-text-faint mb-4 text-center">You'll receive {product.coupons_per_user} exclusive coupon codes + complete Promo Kit</div>
 
         <button
-          onClick={() => onConfirm(selected, generateCodes(5, selected))}
-          className="w-full bg-gradient-to-r from-brand-green to-brand-green-dim text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-brand-green/30 transition-all"
+          onClick={() => onConfirm(selected)}
+          disabled={generating}
+          className="w-full bg-gradient-to-r from-brand-green to-brand-green-dim text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-brand-green/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          🎟️ Generate 5 Coupon Codes <ArrowRight className="w-4 h-4" />
+          {generating ? (
+            <>
+              <motion.div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} />
+              Generating...
+            </>
+          ) : (
+            <>🎟️ Generate {product.coupons_per_user} Coupon Codes <ArrowRight className="w-4 h-4" /></>
+          )}
         </button>
       </motion.div>
     </motion.div>
@@ -230,7 +253,6 @@ function CouponReveal({
           </button>
         </div>
 
-        {/* Promo kit notice */}
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-700">
           🎨 <strong>Promo Kit unlocked!</strong> Banners, captions, WhatsApp scripts and daily creatives are now available in your DealSell panel.
         </div>
@@ -240,9 +262,11 @@ function CouponReveal({
 }
 
 // ─── My Coupons view ──────────────────────────────────────────────────────────
-function MyCouponsView({ productId, onBack }: { productId: string; onBack: () => void }) {
-  const product = products.find(p => p.id === productId)!;
-  const codes = myCoupons[productId] || [];
+function MyCouponsView({ product, codes, onBack }: {
+  product: Product;
+  codes: CouponCode[];
+  onBack: () => void;
+}) {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
   const redeemed = codes.filter(c => c.status === "redeemed").length;
@@ -305,13 +329,6 @@ function MyCouponsView({ productId, onBack }: { productId: string; onBack: () =>
         {codes.map((c, i) => (
           <div key={c.code} className="bg-white border border-brand-border rounded-2xl p-4 flex items-center gap-3">
             <span className="font-mono font-bold text-sm text-brand-green-dim flex-1 tracking-wider">{c.code}</span>
-            {c.status !== "unused" && (
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] text-brand-text-faint truncate">
-                  {c.redeemedBy ? `${c.redeemedBy} · ${c.redeemedAt}` : "Verification in progress"}
-                </div>
-              </div>
-            )}
             <div className={`shrink-0 border rounded-lg px-2.5 py-1 text-[10px] font-bold ${statusStyle(c.status)}`}>
               {statusLabel(c)}
             </div>
@@ -330,25 +347,63 @@ function MyCouponsView({ productId, onBack }: { productId: string; onBack: () =>
 
 // ─── Main DealSell Page ───────────────────────────────────────────────────────
 export default function DealSell() {
-  // Simulate: true = verified, false = pending. Wire to real auth/profile later.
-  const isVerified = false;
+  const { user, isVerified } = useAuth();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  // productId → CouponCode[]
+  const [couponMap, setCouponMap] = useState<Record<string, CouponCode[]>>({});
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const [selectorProduct, setSelectorProduct] = useState<Product | null>(null);
-  const [revealData, setRevealData]           = useState<{ codes: CouponCode[]; product: Product } | null>(null);
-  const [viewingCoupons, setViewingCoupons]   = useState<string | null>(null);
-  const [tab, setTab]                          = useState<"products" | "mycoupons">("products");
+  const [revealData, setRevealData] = useState<{ codes: CouponCode[]; product: Product } | null>(null);
+  const [viewingCoupons, setViewingCoupons] = useState<string | null>(null);
+  const [tab, setTab] = useState<"products" | "mycoupons">("products");
 
-  // Generated coupons (session state — would persist to DB in real app)
-  const [generatedCoupons, setGeneratedCoupons] = useState<Record<string, CouponCode[]>>({ ...myCoupons });
+  // Load products
+  useEffect(() => {
+    getActiveProducts().then((dbProds) => {
+      setProducts(dbProds.map(mapDbProduct));
+      setLoadingProducts(false);
+    });
+  }, []);
 
-  const handleConfirmGenerate = (discountValue: number, codes: CouponCode[]) => {
-    if (!selectorProduct) return;
-    setGeneratedCoupons(prev => ({ ...prev, [selectorProduct.id]: codes }));
-    setRevealData({ codes, product: selectorProduct });
+  // Load user coupons
+  useEffect(() => {
+    if (!user) return;
+    getUserCoupons(user.id).then((dbCoupons) => {
+      const grouped: Record<string, CouponCode[]> = {};
+      for (const c of dbCoupons) {
+        if (!grouped[c.product_id]) grouped[c.product_id] = [];
+        grouped[c.product_id].push(mapDbCoupon(c));
+      }
+      setCouponMap(grouped);
+    });
+  }, [user]);
+
+  const handleConfirmGenerate = async (discountValue: number) => {
+    if (!selectorProduct || !user) return;
+    setGenerating(true);
+    setGenerateError(null);
+    const tier = selectorProduct.tiers.find((t) => t.discountValue === discountValue);
+    const commission = tier ? tier.baseCommission : selectorProduct.baseCommission - discountValue;
+    const { codes, error } = await generateCoupons(
+      user.id,
+      selectorProduct.id,
+      discountValue as 50 | 100 | 150,
+      commission,
+      selectorProduct.coupons_per_user
+    );
+    setGenerating(false);
+    if (error) { setGenerateError(error); return; }
+    const newCodes: CouponCode[] = codes.map((code) => ({ code, discountValue, status: "unused" }));
+    setCouponMap((prev) => ({ ...prev, [selectorProduct.id]: newCodes }));
+    setRevealData({ codes: newCodes, product: selectorProduct });
     setSelectorProduct(null);
   };
 
-  const myProductIds = Object.keys(generatedCoupons);
+  const myProductIds = Object.keys(couponMap);
 
   return (
     <div className="p-6 max-w-4xl mx-auto" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -374,6 +429,12 @@ export default function DealSell() {
             className="shrink-0 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl hover:bg-amber-600 transition-colors">
             Verify Now
           </Link>
+        </div>
+      )}
+
+      {generateError && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-sm text-red-700 mb-4">
+          ⚠️ {generateError}
         </div>
       )}
 
@@ -405,59 +466,65 @@ export default function DealSell() {
           </div>
 
           {/* Product grid */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {products.map((p, i) => {
-              const hasCoupons = !!generatedCoupons[p.id];
-              return (
-                <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                  className="bg-white border-2 border-brand-border rounded-3xl overflow-hidden hover:shadow-lg hover:shadow-brand-green/10 hover:-translate-y-0.5 transition-all">
-                  <div className={`bg-gradient-to-br ${p.bg} px-6 pt-5 pb-6 text-center`}>
-                    <div className="text-4xl mb-2">{p.emoji}</div>
-                    <div className="font-display font-black text-sm text-white leading-snug">{p.name}</div>
-                    <div className="text-[10px] text-brand-green-light/60 font-mono mt-1">GrowthGurukul.store</div>
-                  </div>
-                  <div className="p-5">
-                    <p className="text-xs text-brand-text-faint mb-4 leading-relaxed">{p.desc}</p>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-[10px] text-brand-text-faint">COURSE PRICE</div>
-                        <div className="font-display font-black text-xl text-brand-text">₹{p.price}</div>
+          {loadingProducts ? (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(i => <div key={i} className="bg-white border border-brand-border rounded-3xl h-64 animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {products.map((p, i) => {
+                const hasCoupons = !!couponMap[p.id];
+                return (
+                  <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+                    className="bg-white border-2 border-brand-border rounded-3xl overflow-hidden hover:shadow-lg hover:shadow-brand-green/10 hover:-translate-y-0.5 transition-all">
+                    <div className={`bg-gradient-to-br ${p.bg} px-6 pt-5 pb-6 text-center`}>
+                      <div className="text-4xl mb-2">{p.emoji}</div>
+                      <div className="font-display font-black text-sm text-white leading-snug">{p.name}</div>
+                      <div className="text-[10px] text-brand-green-light/60 font-mono mt-1">GrowthGurukul.store</div>
+                    </div>
+                    <div className="p-5">
+                      <p className="text-xs text-brand-text-faint mb-4 leading-relaxed">{p.desc}</p>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <div className="text-[10px] text-brand-text-faint">COURSE PRICE</div>
+                          <div className="font-display font-black text-xl text-brand-text">₹{p.price}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-brand-text-faint">YOU EARN UP TO</div>
+                          <div className="font-display font-black text-2xl text-brand-green-dim">₹{p.baseCommission}</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[10px] text-brand-text-faint">YOU EARN UP TO</div>
-                        <div className="font-display font-black text-2xl text-brand-green-dim">₹{p.baseCommission}</div>
+                      <div className="bg-brand-green/6 border border-brand-green/20 rounded-xl px-3 py-2 text-xs text-brand-green-dim mb-4">
+                        🎟️ Give buyers ₹{p.minCoupon}–₹{p.maxCoupon} discount coupon
+                      </div>
+
+                      {hasCoupons ? (
+                        <button onClick={() => { setTab("mycoupons"); setViewingCoupons(p.id); }}
+                          className="w-full flex items-center justify-center gap-2 border-2 border-brand-green/30 bg-brand-green/6 text-brand-green-dim font-bold text-sm py-3 rounded-xl hover:bg-brand-green/12 transition-colors">
+                          <Zap className="w-4 h-4" /> View My Coupons <ChevronRight className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => isVerified && setSelectorProduct(p)}
+                          className={`w-full flex items-center justify-center gap-2 font-bold text-sm py-3 rounded-xl transition-all ${
+                            isVerified
+                              ? "bg-gradient-to-r from-brand-green to-brand-green-dim text-white hover:shadow-lg hover:shadow-brand-green/30"
+                              : "bg-brand-border text-brand-text-faint cursor-not-allowed"
+                          }`}>
+                          {isVerified ? <><Gift className="w-4 h-4" /> Get Coupons + Promo Kit</> : <><Lock className="w-3.5 h-3.5" /> Verify to Unlock</>}
+                        </button>
+                      )}
+
+                      <div className="flex justify-between text-[10px] text-brand-text-faint mt-3">
+                        <span>✅ {p.sellers} active sellers</span>
+                        <span>🎟️ {p.redeemed.toLocaleString()} redeemed</span>
                       </div>
                     </div>
-                    <div className="bg-brand-green/6 border border-brand-green/20 rounded-xl px-3 py-2 text-xs text-brand-green-dim mb-4">
-                      🎟️ Give buyers ₹{p.minCoupon}–₹{p.maxCoupon} discount coupon
-                    </div>
-
-                    {hasCoupons ? (
-                      <button onClick={() => { setTab("mycoupons"); setViewingCoupons(p.id); }}
-                        className="w-full flex items-center justify-center gap-2 border-2 border-brand-green/30 bg-brand-green/6 text-brand-green-dim font-bold text-sm py-3 rounded-xl hover:bg-brand-green/12 transition-colors">
-                        <Zap className="w-4 h-4" /> View My Coupons <ChevronRight className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => isVerified && setSelectorProduct(p)}
-                        className={`w-full flex items-center justify-center gap-2 font-bold text-sm py-3 rounded-xl transition-all ${
-                          isVerified
-                            ? "bg-gradient-to-r from-brand-green to-brand-green-dim text-white hover:shadow-lg hover:shadow-brand-green/30"
-                            : "bg-brand-border text-brand-text-faint cursor-not-allowed"
-                        }`}>
-                        {isVerified ? <><Gift className="w-4 h-4" /> Get Coupons + Promo Kit</> : <><Lock className="w-3.5 h-3.5" /> Verify to Unlock</>}
-                      </button>
-                    )}
-
-                    <div className="flex justify-between text-[10px] text-brand-text-faint mt-3">
-                      <span>✅ {p.sellers} active sellers</span>
-                      <span>🎟️ {p.redeemed.toLocaleString()} redeemed</span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Seller tier preview */}
           <div className="bg-white border border-brand-border rounded-2xl p-5">
@@ -466,10 +533,10 @@ export default function DealSell() {
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { tier: "🥉 Bronze", sales: "0–4 sales",  bonus: "Base",      active: true },
-                { tier: "🥈 Silver", sales: "5+ sales",   bonus: "+10%",      active: false },
-                { tier: "🥇 Gold",   sales: "10+ sales",  bonus: "+20%",      active: false },
-                { tier: "💎 Platinum", sales: "25+ sales", bonus: "Custom",   active: false },
+                { tier: "🥉 Bronze", sales: "0–4 sales",  bonus: "Base",    active: true },
+                { tier: "🥈 Silver", sales: "5+ sales",   bonus: "+10%",    active: false },
+                { tier: "🥇 Gold",   sales: "10+ sales",  bonus: "+20%",    active: false },
+                { tier: "💎 Platinum", sales: "25+ sales", bonus: "Custom", active: false },
               ].map((t, i) => (
                 <div key={i} className={`rounded-2xl p-3 text-center border ${t.active ? "border-brand-green/30 bg-brand-green/6" : "border-brand-border bg-brand-surface2"}`}>
                   <div className="text-lg mb-1">{t.tier.split(" ")[0]}</div>
@@ -487,7 +554,11 @@ export default function DealSell() {
       {tab === "mycoupons" && (
         <div>
           {viewingCoupons ? (
-            <MyCouponsView productId={viewingCoupons} onBack={() => setViewingCoupons(null)} />
+            <MyCouponsView
+              product={products.find(p => p.id === viewingCoupons)!}
+              codes={couponMap[viewingCoupons] ?? []}
+              onBack={() => setViewingCoupons(null)}
+            />
           ) : myProductIds.length === 0 ? (
             <div className="bg-white border border-brand-border rounded-2xl p-8 text-center">
               <div className="text-4xl mb-3">🎟️</div>
@@ -501,8 +572,9 @@ export default function DealSell() {
           ) : (
             <div className="space-y-3">
               {myProductIds.map(pid => {
-                const p = products.find(x => x.id === pid)!;
-                const codes = generatedCoupons[pid];
+                const p = products.find(x => x.id === pid);
+                if (!p) return null;
+                const codes = couponMap[pid];
                 const redeemed = codes.filter(c => c.status === "redeemed").length;
                 const earned = codes.filter(c => c.status === "redeemed").reduce((s, c) => s + (c.commissionEarned || 0), 0);
                 return (
@@ -528,10 +600,19 @@ export default function DealSell() {
       {/* Modals */}
       <AnimatePresence>
         {selectorProduct && (
-          <CouponValueSelector product={selectorProduct} onConfirm={handleConfirmGenerate} onClose={() => setSelectorProduct(null)} />
+          <CouponValueSelector
+            product={selectorProduct}
+            onConfirm={handleConfirmGenerate}
+            onClose={() => setSelectorProduct(null)}
+            generating={generating}
+          />
         )}
         {revealData && (
-          <CouponReveal codes={revealData.codes} product={revealData.product} onClose={() => { setRevealData(null); setTab("mycoupons"); setViewingCoupons(revealData.product.id); }} />
+          <CouponReveal
+            codes={revealData.codes}
+            product={revealData.product}
+            onClose={() => { setRevealData(null); setTab("mycoupons"); setViewingCoupons(revealData.product.id); }}
+          />
         )}
       </AnimatePresence>
     </div>

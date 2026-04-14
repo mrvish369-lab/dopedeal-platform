@@ -1,260 +1,225 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Eye, EyeOff, BadgeCheck, Phone } from "lucide-react";
+import { ArrowRight, ArrowLeft, Phone, Shield, CheckCircle, User, MapPin } from "lucide-react";
+import { useAuth, toE164 } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type Step = "details" | "verify";
+type Step = "details" | "otp" | "done";
 
 export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const refCode = searchParams.get("ref") || "";
+  const refCode = searchParams.get("ref") ?? "";
+  const { sendOtp, verifyOtp } = useAuth();
 
   const [step, setStep] = useState<Step>("details");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Form state
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [city, setCity] = useState("");
-  const [referral, setReferral] = useState(refCode);
+  const [form, setForm] = useState({ fullName: "", phone: "", city: "", referralCode: refCode });
   const [otp, setOtp] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!name.trim() || !phone.trim() || !password) {
-      setError("Please fill all required fields.");
-      return;
-    }
-    if (phone.replace(/\D/g, "").length < 10) {
-      setError("Enter a valid 10-digit mobile number.");
-      return;
-    }
-    setLoading(true);
-    try {
-      // Use Supabase signUp with email derived from phone for now
-      // In production, use Firebase Phone Auth or Supabase Phone OTP
-      const email = `${phone.replace(/\D/g, "")}@dopedeal.store`;
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            city,
-            referral_code: referral,
-            phone,
-          },
-        },
-      });
-      if (signUpError) throw signUpError;
-      setStep("verify");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    // In V1, skip OTP if using email-based auth — just navigate to dashboard
-    // Full phone OTP will be implemented with Firebase Auth in V2
+  // ── Step 1: Send OTP ─────────────────────────────────────────────────────
+  const handleSendOtp = async () => {
+    setError(null);
+    if (!form.fullName.trim()) return setError("Please enter your full name");
+    if (!/^\d{10}$/.test(form.phone.replace(/\s/g, ""))) return setError("Enter a valid 10-digit mobile number");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
+    const { error: err } = await sendOtp(form.phone);
     setLoading(false);
-    navigate("/dashboard");
+    if (err) return setError(err);
+    setStep("otp");
   };
+
+  // ── Step 2: Verify OTP & save profile ────────────────────────────────────
+  const handleVerifyOtp = async () => {
+    setError(null);
+    if (otp.length < 4) return setError("Enter the OTP sent to your mobile");
+    setLoading(true);
+
+    const { error: err } = await verifyOtp(form.phone, otp);
+    if (err) { setLoading(false); return setError(err); }
+
+    // Upsert profile with form data
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("dd_user_profiles").upsert({
+        user_id: user.id,
+        full_name: form.fullName.trim(),
+        phone: toE164(form.phone),
+        city: form.city.trim() || null,
+      }, { onConflict: "user_id" });
+
+      // Handle referral
+      if (form.referralCode.trim()) {
+        const { data: referrer } = await supabase
+          .from("dd_user_profiles")
+          .select("id, user_id")
+          .eq("referral_code", form.referralCode.trim().toUpperCase())
+          .single();
+        if (referrer) {
+          await supabase.from("dd_referrals").insert({
+            referrer_id: referrer.user_id,
+            referred_id: user.id,
+            referral_code: form.referralCode.trim().toUpperCase(),
+          }).onConflict("referred_id").ignore();
+        }
+      }
+    }
+
+    setLoading(false);
+    setStep("done");
+    setTimeout(() => navigate("/dashboard"), 1500);
+  };
+
+  const steps: Step[] = ["details", "otp", "done"];
+  const stepIdx = steps.indexOf(step);
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{ background: "#F7FAF8", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-    >
-      {/* BG decoration */}
-      <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-brand-green opacity-[0.06] blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-brand-teal opacity-[0.05] blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
-
-      <div className="relative w-full max-w-md mx-auto px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(135deg, #F7FAF8 0%, #E8F5EE 100%)" }}>
+      <div className="w-full max-w-sm">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-green to-brand-green-dim flex items-center justify-center font-display font-black text-sm text-brand-forest shadow-lg shadow-brand-green/25">DD</div>
-          <span className="font-display font-black text-xl text-brand-forest">DopeDeal</span>
-        </Link>
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-green to-brand-teal flex items-center justify-center font-display font-black text-brand-forest text-sm shadow-lg shadow-brand-green/30">DD</div>
+            <span className="font-display font-black text-xl text-brand-forest">DopeDeal</span>
+          </Link>
+        </div>
 
-        <div className="bg-white border border-brand-border rounded-3xl shadow-lg shadow-brand-forest/5 p-7">
-          {/* Progress */}
-          <div className="flex items-center gap-3 mb-7">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-              step === "details" ? "bg-brand-green border-brand-green text-white" : "bg-brand-green/10 border-brand-green text-brand-green-dim"
-            }`}>
-              {step === "verify" ? <BadgeCheck className="w-4 h-4" /> : "1"}
+        {/* Step progress */}
+        <div className="flex items-center gap-2 mb-6">
+          {["Details", "Verify", "Done"].map((label, i) => (
+            <div key={i} className="flex items-center gap-2 flex-1">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                i < stepIdx ? "bg-brand-green text-white" : i === stepIdx ? "bg-brand-forest text-white" : "bg-gray-100 text-gray-400"
+              }`}>
+                {i < stepIdx ? <CheckCircle className="w-4 h-4" /> : i + 1}
+              </div>
+              <span className={`text-[10px] font-semibold ${i === stepIdx ? "text-brand-forest" : "text-gray-400"}`}>{label}</span>
+              {i < 2 && <div className={`flex-1 h-0.5 rounded ${i < stepIdx ? "bg-brand-green" : "bg-gray-200"}`} />}
             </div>
-            <div className={`flex-1 h-0.5 rounded-full transition-all ${step === "verify" ? "bg-brand-green" : "bg-brand-border"}`} />
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-              step === "verify" ? "bg-brand-green border-brand-green text-white" : "border-brand-border text-brand-text-faint"
-            }`}>2</div>
-          </div>
+          ))}
+        </div>
 
-          <AnimatePresence mode="wait">
-            {step === "details" && (
-              <motion.form
-                key="details"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                onSubmit={handleSendOTP}
-                className="space-y-4"
-              >
-                <div>
-                  <h2 className="font-display font-extrabold text-2xl text-brand-forest mb-1">Create Account</h2>
-                  <p className="text-sm text-brand-text-dim">Join free. Start earning within 24 hours.</p>
-                </div>
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="bg-white rounded-3xl shadow-xl shadow-brand-forest/8 border border-brand-border p-6"
+        >
+          {step === "details" && (
+            <>
+              <h1 className="font-display font-extrabold text-2xl text-brand-forest mb-1">Create Account</h1>
+              <p className="text-sm text-brand-text-dim mb-6">Join free. Start earning within 24 hours.</p>
 
+              <div className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Full Name *</label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Rahul Kumar"
-                    required
-                    className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-brand-text outline-none focus:border-brand-green transition-colors"
-                  />
+                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
+                    <User className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
+                    <input type="text" value={form.fullName} onChange={(e) => set("fullName", e.target.value)}
+                      placeholder="Rahul Kumar" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Mobile Number *</label>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-1.5 bg-brand-surface2 border border-brand-border rounded-xl px-3 py-2.5 text-sm text-brand-text-dim shrink-0">
-                      <Phone className="w-3.5 h-3.5" /> +91
+                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
+                    <div className="flex items-center gap-1.5 px-3 py-2.5 border-r border-brand-border bg-brand-surface2">
+                      <Phone className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm font-semibold text-brand-text-dim">+91</span>
                     </div>
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="9876543210"
-                      type="tel"
-                      required
-                      className="flex-1 border border-brand-border rounded-xl px-4 py-2.5 text-sm text-brand-text outline-none focus:border-brand-green transition-colors"
-                    />
+                    <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="9876543210" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" maxLength={10} />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">City</label>
-                  <input
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Mumbai"
-                    className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-brand-text outline-none focus:border-brand-green transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Password *</label>
-                  <div className="relative">
-                    <input
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      type={showPass ? "text" : "password"}
-                      placeholder="Create a strong password"
-                      required
-                      className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-brand-text outline-none focus:border-brand-green transition-colors pr-10"
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-text-faint">
-                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
+                    <MapPin className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
+                    <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
+                      placeholder="Mumbai" className="flex-1 py-2.5 px-3 text-sm focus:outline-none" />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Referral Code (optional)</label>
+                  <input type="text" value={form.referralCode} onChange={(e) => set("referralCode", e.target.value.toUpperCase())}
+                    placeholder="DOPE-XXXX" className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
+                </div>
+
+                {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>}
+
+                <button onClick={handleSendOtp} disabled={loading}
+                  className="w-full bg-brand-green hover:bg-brand-green-dim text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                  {loading ? "Sending OTP..." : <><span>Send OTP</span><ArrowRight className="w-4 h-4" /></>}
+                </button>
+              </div>
+
+              <p className="text-center text-xs text-brand-text-faint mt-5">
+                Already have an account? <Link to="/auth/login" className="text-brand-green font-semibold">Login</Link>
+              </p>
+            </>
+          )}
+
+          {step === "otp" && (
+            <>
+              <button onClick={() => setStep("details")} className="flex items-center gap-1 text-xs text-brand-text-faint mb-4 hover:text-brand-text transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" /> Back
+              </button>
+              <div className="w-12 h-12 rounded-2xl bg-brand-green/10 flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-brand-green" />
+              </div>
+              <h2 className="font-display font-extrabold text-xl text-brand-forest mb-1">Verify Mobile</h2>
+              <p className="text-sm text-brand-text-dim mb-6">
+                OTP sent to <span className="font-semibold">+91 {form.phone}</span>
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Enter OTP</label>
                   <input
-                    value={referral}
-                    onChange={(e) => setReferral(e.target.value)}
-                    placeholder="DOPE-XXXX"
-                    className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-brand-text outline-none focus:border-brand-green transition-colors font-mono"
+                    type="text" inputMode="numeric" value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="• • • • • •"
+                    className="w-full border-2 border-brand-border rounded-2xl px-4 py-3.5 text-center text-2xl font-mono font-bold tracking-[0.5em] focus:outline-none focus:border-brand-green"
+                    maxLength={6}
                   />
                 </div>
 
-                {error && (
-                  <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</div>
-                )}
+                {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-brand-forest to-brand-forest-mid text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-brand-forest/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Creating Account..." : <><span>Continue</span><ArrowRight className="w-4 h-4" /></>}
+                <button onClick={handleVerifyOtp} disabled={loading || otp.length < 4}
+                  className="w-full bg-brand-green hover:bg-brand-green-dim text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                  {loading ? "Verifying..." : <><span>Verify & Continue</span><ArrowRight className="w-4 h-4" /></>}
                 </button>
 
-                <p className="text-center text-xs text-brand-text-faint">
-                  Already have an account?{" "}
-                  <Link to="/auth/login" className="text-brand-green-dim font-semibold hover:underline">Login</Link>
-                </p>
-              </motion.form>
-            )}
+                <button onClick={() => { setOtp(""); handleSendOtp(); }}
+                  className="w-full text-xs text-brand-text-faint hover:text-brand-green transition-colors py-1">
+                  Resend OTP
+                </button>
+              </div>
+            </>
+          )}
 
-            {step === "verify" && (
-              <motion.form
-                key="verify"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                onSubmit={handleVerify}
-                className="space-y-5"
+          {step === "done" && (
+            <div className="text-center py-4">
+              <motion.div
+                className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4"
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.1 }}
               >
-                <div>
-                  <h2 className="font-display font-extrabold text-2xl text-brand-forest mb-1">Check Your Email</h2>
-                  <p className="text-sm text-brand-text-dim">
-                    We've sent a verification link to{" "}
-                    <strong className="text-brand-text">{phone.replace(/\D/g, "")}@dopedeal.store</strong>
-                  </p>
-                </div>
-
-                <div className="bg-brand-green/6 border border-brand-green/20 rounded-2xl p-4 text-sm text-brand-green-dim">
-                  ✅ Account created! Click the link in your email to verify, or proceed to your dashboard and complete verification later.
-                </div>
-
-                {error && (
-                  <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-brand-green to-brand-green-dim text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {loading ? "Entering Dashboard..." : <><span>Go to My Dashboard</span><ArrowRight className="w-4 h-4" /></>}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStep("details")}
-                  className="w-full flex items-center justify-center gap-2 text-sm text-brand-text-dim hover:text-brand-text transition-colors py-2"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <p className="text-center text-xs text-brand-text-faint mt-6">
-          By joining, you agree to our{" "}
-          <Link to="/legal/terms" className="underline">Terms</Link>
-          {" "}and{" "}
-          <Link to="/legal/privacy" className="underline">Privacy Policy</Link>
-          . 🇮🇳 Made in India.
-        </p>
+                <CheckCircle className="w-9 h-9 text-green-500" />
+              </motion.div>
+              <h2 className="font-display font-extrabold text-xl text-brand-forest mb-1">Welcome to DopeDeal!</h2>
+              <p className="text-sm text-brand-text-dim">Redirecting to your dashboard...</p>
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );

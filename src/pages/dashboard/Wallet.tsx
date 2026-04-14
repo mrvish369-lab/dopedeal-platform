@@ -1,60 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet as WalletIcon, ArrowDownToLine, Clock, CheckCircle,
   AlertCircle, IndianRupee, ArrowUpRight, ArrowDownLeft,
   Users, ShoppingBag, Share2, Copy, BadgeCheck,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getTransactions, submitWithdrawalRequest } from "@/lib/db/wallet";
+import type { WalletTransaction } from "@/lib/db/wallet";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PaymentMethod = "upi" | "bank";
 type TxnType = "task" | "coupon" | "referral" | "withdrawal";
 
-interface Transaction {
-  id: string;
-  type: TxnType;
-  title: string;
-  amount: number;
-  direction: "credit" | "debit";
-  status: "completed" | "pending" | "processing";
-  date: string;
-}
-
-// ── Mock transactions ─────────────────────────────────────────────────────────
-const TRANSACTIONS: Transaction[] = [
-  {
-    id: "txn_001", type: "task", title: "Subscribe & Ring Bell on DopeDeal YT",
-    amount: 25, direction: "credit", status: "completed", date: "2026-04-13T10:00:00Z",
-  },
-  {
-    id: "txn_002", type: "coupon", title: "GrowthGurukul Pro Course — DD-A3F9-50 redeemed",
-    amount: 250, direction: "credit", status: "pending", date: "2026-04-12T15:30:00Z",
-  },
-  {
-    id: "txn_003", type: "referral", title: "Referral earning — Riya Kapoor",
-    amount: 18, direction: "credit", status: "completed", date: "2026-04-11T09:00:00Z",
-  },
-  {
-    id: "txn_004", type: "withdrawal", title: "UPI withdrawal — raj@upi",
-    amount: 200, direction: "debit", status: "processing", date: "2026-04-10T14:00:00Z",
-  },
-];
-
 const TXN_ICON: Record<TxnType, { Icon: React.FC<{ className?: string }>; bg: string }> = {
-  task:       { Icon: Share2,       bg: "bg-pink-100 text-pink-600"   },
-  coupon:     { Icon: ShoppingBag,  bg: "bg-blue-100 text-blue-600"   },
-  referral:   { Icon: Users,        bg: "bg-purple-100 text-purple-600" },
-  withdrawal: { Icon: ArrowDownToLine, bg: "bg-red-100 text-red-500"  },
+  task:       { Icon: Share2,          bg: "bg-pink-100 text-pink-600"    },
+  coupon:     { Icon: ShoppingBag,     bg: "bg-blue-100 text-blue-600"    },
+  referral:   { Icon: Users,           bg: "bg-purple-100 text-purple-600" },
+  withdrawal: { Icon: ArrowDownToLine, bg: "bg-red-100 text-red-500"      },
 };
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
-  completed:  { bg: "bg-green-50",  text: "text-green-700"  },
-  pending:    { bg: "bg-amber-50",  text: "text-amber-700"  },
-  processing: { bg: "bg-blue-50",   text: "text-blue-600"   },
+  completed:  { bg: "bg-green-50", text: "text-green-700"  },
+  pending:    { bg: "bg-amber-50", text: "text-amber-700"  },
+  processing: { bg: "bg-blue-50",  text: "text-blue-600"   },
 };
 
 // ── Withdraw Form ─────────────────────────────────────────────────────────────
-function WithdrawForm({ availableBalance }: { availableBalance: number }) {
+function WithdrawForm({
+  availableBalance,
+  userId,
+  onSuccess,
+}: {
+  availableBalance: number;
+  userId: string;
+  onSuccess: () => void;
+}) {
   const MIN = 200;
   const canWithdraw = availableBalance >= MIN;
 
@@ -64,6 +45,7 @@ function WithdrawForm({ availableBalance }: { availableBalance: number }) {
   const [bankDetails, setBankDetails] = useState({ accountNo: "", ifsc: "", name: "" });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const amountNum = Number(amount);
   const isValid =
@@ -75,8 +57,22 @@ function WithdrawForm({ availableBalance }: { availableBalance: number }) {
   const handleSubmit = async () => {
     if (!isValid) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
+    setError(null);
+    const payload =
+      method === "upi"
+        ? { amount: amountNum, method: "upi" as const, upi_id: upiId }
+        : {
+            amount: amountNum,
+            method: "bank" as const,
+            bank_account_no: bankDetails.accountNo,
+            bank_ifsc: bankDetails.ifsc,
+            bank_account_name: bankDetails.name,
+          };
+    const { error: err } = await submitWithdrawalRequest(userId, payload);
+    setSubmitting(false);
+    if (err) { setError(err); return; }
     setSubmitted(true);
+    onSuccess();
   };
 
   if (submitted) {
@@ -106,6 +102,12 @@ function WithdrawForm({ availableBalance }: { availableBalance: number }) {
       {!canWithdraw && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-700">
           ⚠️ Minimum ₹{MIN} required. Your available balance is ₹{availableBalance.toFixed(2)} — keep earning!
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-xs text-red-700 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
@@ -243,13 +245,23 @@ function WithdrawForm({ availableBalance }: { availableBalance: number }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Wallet() {
+  const { user, wallet, refreshWallet } = useAuth();
   const [tab, setTab] = useState<"overview" | "history" | "withdraw">("overview");
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loadingTxns, setLoadingTxns] = useState(true);
 
-  // Mock balances — wire to Supabase in production
-  const available = 25;
-  const pending = 250;
-  const referral = 18;
-  const total = available + pending + referral;
+  useEffect(() => {
+    if (!user) return;
+    getTransactions(user.id).then((txns) => {
+      setTransactions(txns);
+      setLoadingTxns(false);
+    });
+  }, [user]);
+
+  const available = wallet?.available_balance ?? 0;
+  const pending   = wallet?.pending_balance ?? 0;
+  const referral  = wallet?.referral_balance ?? 0;
+  const total     = wallet?.total_earned ?? 0;
 
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto">
@@ -275,7 +287,7 @@ export default function Wallet() {
             <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white mb-3`}>
               <Icon className="w-4 h-4" />
             </div>
-            <div className="font-display font-black text-xl text-brand-forest">₹{amount}</div>
+            <div className="font-display font-black text-xl text-brand-forest">₹{amount.toFixed(2)}</div>
             <div className="text-xs font-semibold text-brand-text-dim mt-0.5">{label}</div>
             <div className="text-[10px] text-brand-text-faint">{desc}</div>
           </div>
@@ -328,16 +340,20 @@ export default function Wallet() {
 
         {tab === "history" && (
           <motion.div key="history" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-            {TRANSACTIONS.length === 0 ? (
+            {loadingTxns ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => <div key={i} className="bg-white border border-brand-border rounded-2xl h-16 animate-pulse" />)}
+              </div>
+            ) : transactions.length === 0 ? (
               <div className="bg-white border border-brand-border rounded-2xl p-10 text-center text-brand-text-faint">
                 <p className="text-4xl mb-3">📋</p>
                 <p className="font-semibold text-brand-text text-sm">No transactions yet</p>
                 <p className="text-xs mt-1">Complete tasks or earn from coupons to see your history.</p>
               </div>
             ) : (
-              TRANSACTIONS.map((txn) => {
-                const { Icon, bg } = TXN_ICON[txn.type];
-                const { bg: pillBg, text: pillText } = STATUS_PILL[txn.status];
+              transactions.map((txn) => {
+                const { Icon, bg } = TXN_ICON[txn.type] ?? TXN_ICON.task;
+                const { bg: pillBg, text: pillText } = STATUS_PILL[txn.status] ?? STATUS_PILL.pending;
                 const isCredit = txn.direction === "credit";
                 return (
                   <motion.div
@@ -356,7 +372,7 @@ export default function Wallet() {
                           {txn.status}
                         </span>
                         <span className="text-[10px] text-gray-400">
-                          {new Date(txn.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                          {new Date(txn.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                         </span>
                       </div>
                     </div>
@@ -372,7 +388,13 @@ export default function Wallet() {
 
         {tab === "withdraw" && (
           <motion.div key="withdraw" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <WithdrawForm availableBalance={available} />
+            {user && (
+              <WithdrawForm
+                availableBalance={available}
+                userId={user.id}
+                onSuccess={refreshWallet}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -58,7 +58,7 @@ const navItems = [
 function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isVerified } = useAuth();
 
   const isActive = (path: string, exact = false) => {
     if (exact) return location.pathname === path;
@@ -104,8 +104,8 @@ function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose?: () =
               {user?.user_metadata?.full_name || "DopeDeal User"}
             </div>
             <div className="flex items-center gap-1 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-xs text-white/40">Pending Verification</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${isVerified ? "bg-brand-green" : "bg-amber-400"}`} />
+              <span className="text-xs text-white/40">{isVerified ? "Verified ✓" : "Pending Verification"}</span>
             </div>
           </div>
         </div>
@@ -172,14 +172,15 @@ function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose?: () =
 
 // ─── Overview (Dashboard Home) ────────────────────────────────────────────────
 function DashboardOverview() {
-  const { user } = useAuth();
+  const { user, wallet, isVerified } = useAuth();
   const name = user?.user_metadata?.full_name?.split(" ")[0] || "there";
 
+  const fmt = (n: number) => `₹${n.toFixed(2)}`;
   const stats = [
-    { label: "Available Balance", value: "₹0.00", sub: "Ready to withdraw", color: "from-brand-green to-brand-teal", icon: <Wallet className="w-5 h-5" /> },
-    { label: "Pending Balance", value: "₹0.00", sub: "In verification", color: "from-amber-500 to-orange-500", icon: <BadgeCheck className="w-5 h-5" /> },
-    { label: "Total Earned", value: "₹0.00", sub: "All time", color: "from-blue-500 to-indigo-600", icon: <BarChart3 className="w-5 h-5" /> },
-    { label: "Referral Balance", value: "₹0.00", sub: "From referrals", color: "from-purple-500 to-violet-600", icon: <Users className="w-5 h-5" /> },
+    { label: "Available Balance", value: fmt(wallet?.available_balance ?? 0), sub: "Ready to withdraw", color: "from-brand-green to-brand-teal", icon: <Wallet className="w-5 h-5" /> },
+    { label: "Pending Balance", value: fmt(wallet?.pending_balance ?? 0), sub: "In verification", color: "from-amber-500 to-orange-500", icon: <BadgeCheck className="w-5 h-5" /> },
+    { label: "Total Earned", value: fmt(wallet?.total_earned ?? 0), sub: "All time", color: "from-blue-500 to-indigo-600", icon: <BarChart3 className="w-5 h-5" /> },
+    { label: "Referral Balance", value: fmt(wallet?.referral_balance ?? 0), sub: "From referrals", color: "from-purple-500 to-violet-600", icon: <Users className="w-5 h-5" /> },
   ];
 
   const quickLinks = [
@@ -200,22 +201,24 @@ function DashboardOverview() {
         <p className="text-sm text-brand-text-dim">Your DopeDeal dashboard. Start earning by picking tasks or sharing coupon codes.</p>
       </div>
 
-      {/* Verification banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 mb-7">
-        <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
-          <Lock className="w-4 h-4" />
+      {/* Verification banner — shown only until approved */}
+      {!isVerified && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 mb-7">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold text-amber-800 text-sm mb-0.5">Profile Verification Pending</div>
+            <p className="text-xs text-amber-700/70">Submit your social media handle for admin review. Once approved (6–12 hrs), PocketMoney and DealSell panels will unlock.</p>
+          </div>
+          <Link
+            to="/dashboard/profile"
+            className="shrink-0 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl hover:bg-amber-600 transition-colors"
+          >
+            Complete Profile
+          </Link>
         </div>
-        <div className="flex-1">
-          <div className="font-semibold text-amber-800 text-sm mb-0.5">Profile Verification Pending</div>
-          <p className="text-xs text-amber-700/70">Submit your social media handle for admin review. Once approved (6–12 hrs), PocketMoney and DealSell panels will unlock.</p>
-        </div>
-        <Link
-          to="/dashboard/profile"
-          className="shrink-0 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl hover:bg-amber-600 transition-colors"
-        >
-          Complete Profile
-        </Link>
-      </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
