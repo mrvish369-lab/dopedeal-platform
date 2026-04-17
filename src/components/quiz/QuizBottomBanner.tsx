@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { QuizCampaign } from "@/hooks/useQuizCampaign";
 import { trackEvent } from "@/lib/session";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface QuizBottomBannerProps {
   campaign: QuizCampaign;
@@ -22,7 +23,7 @@ export const QuizBottomBanner = ({ campaign, className }: QuizBottomBannerProps)
       const url = campaign.bottom_banner_redirect_url.startsWith("http")
         ? campaign.bottom_banner_redirect_url
         : `https://${campaign.bottom_banner_redirect_url}`;
-      window.open(url, "_blank");
+      safeNavigate(url, { newTab: true });
     }
   };
 
