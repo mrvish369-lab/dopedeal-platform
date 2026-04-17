@@ -24,24 +24,68 @@ export interface WithdrawalRequest {
   created_at: string;
 }
 
+/**
+ * Mask a bank account number for safe storage and display.
+ * Keeps only the last 4 digits: e.g. "123456789012" → "****9012"
+ */
+function maskAccountNumber(accountNo: string): string {
+  const digits = accountNo.replace(/\s/g, "");
+  if (digits.length <= 4) return "****";
+  return `****${digits.slice(-4)}`;
+}
+
+/**
+ * Mask an IFSC code for safe storage and display.
+ * Keeps only the first 4 chars (bank identifier): e.g. "HDFC0001234" → "HDFC*******"
+ */
+function maskIfsc(ifsc: string): string {
+  if (ifsc.length <= 4) return "****";
+  return `${ifsc.slice(0, 4)}${"*".repeat(ifsc.length - 4)}`;
+}
+
 export async function getTransactions(userId: string): Promise<WalletTransaction[]> {
+  // Read from coin_transactions (dd_wallet_transactions is a view over this)
   const { data } = await supabase
-    .from("dd_wallet_transactions")
-    .select("*")
+    .from("coin_transactions")
+    .select("id, user_id, transaction_type, description, amount, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data ?? []) as WalletTransaction[];
+
+  return ((data ?? []) as {
+    id: string;
+    user_id: string;
+    transaction_type: string;
+    description: string | null;
+    amount: number;
+    created_at: string;
+  }[]).map((t) => ({
+    id: t.id,
+    user_id: t.user_id,
+    type: (t.transaction_type as WalletTransaction["type"]) ?? "task",
+    title: t.description ?? t.transaction_type,
+    amount: Math.abs(t.amount),
+    direction: t.amount >= 0 ? "credit" : "debit",
+    status: "completed" as const,
+    created_at: t.created_at,
+  }));
 }
 
 export async function getWalletBalance(userId: string) {
   const { data } = await supabase
-    .from("dd_wallet_balances" as never)
-    .select("*")
+    .from("user_wallets")
+    .select("coins_balance, total_earned, total_spent")
     .eq("user_id", userId)
     .single();
-  return (data as { available_balance: number; pending_balance: number; referral_balance: number; total_earned: number } | null) ?? {
-    available_balance: 0, pending_balance: 0, referral_balance: 0, total_earned: 0,
+
+  if (!data) return { available_balance: 0, pending_balance: 0, referral_balance: 0, total_earned: 0 };
+
+  const d = data as { coins_balance: number; total_earned: number; total_spent: number };
+  return {
+    available_balance: d.coins_balance ?? 0,
+    pending_balance: 0,
+    referral_balance: 0,
+    total_earned: d.total_earned ?? 0,
   };
 }
 
@@ -56,22 +100,34 @@ export async function submitWithdrawalRequest(
     bank_account_name?: string;
   }
 ): Promise<{ error: string | null }> {
-  // Insert withdrawal request
+  // Mask sensitive financial identifiers before persisting
+  const safePayload = {
+    ...payload,
+    bank_account_no: payload.bank_account_no
+      ? maskAccountNumber(payload.bank_account_no)
+      : undefined,
+    bank_ifsc: payload.bank_ifsc
+      ? maskIfsc(payload.bank_ifsc)
+      : undefined,
+  };
+
+  // Insert withdrawal request with masked data
   const { error: reqErr } = await supabase.from("dd_withdrawal_requests").insert({
     user_id: userId,
-    ...payload,
+    ...safePayload,
     status: "pending",
   });
   if (reqErr) return { error: reqErr.message };
 
-  // Debit from wallet immediately (processing)
-  const { error: txErr } = await supabase.from("dd_wallet_transactions").insert({
+  // Debit from wallet immediately (processing) — write to coin_transactions
+  const { error: txErr } = await supabase.from("coin_transactions").insert({
     user_id: userId,
-    type: "withdrawal",
-    title: `Withdrawal via ${payload.method === "upi" ? `UPI (${payload.upi_id})` : "Bank Transfer"}`,
-    amount: payload.amount,
-    direction: "debit",
-    status: "processing",
+    transaction_type: "withdrawal",
+    description: `Withdrawal via ${
+      payload.method === "upi" ? `UPI (${payload.upi_id})` : "Bank Transfer"
+    }`,
+    amount: -Math.abs(payload.amount), // negative = debit
+    reference_id: null,
   });
   return { error: txErr?.message ?? null };
 }
@@ -79,8 +135,25 @@ export async function submitWithdrawalRequest(
 export async function getWithdrawalHistory(userId: string): Promise<WithdrawalRequest[]> {
   const { data } = await supabase
     .from("dd_withdrawal_requests")
-    .select("*")
+    .select(
+      "id, user_id, amount, method, upi_id, bank_account_no, bank_ifsc, bank_account_name, status, created_at"
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  return (data ?? []) as WithdrawalRequest[];
+
+  // bank_account_no and bank_ifsc are already masked at write time,
+  // but apply a defensive mask on read as well for any legacy plaintext rows.
+  return ((data ?? []) as WithdrawalRequest[]).map((row) => ({
+    ...row,
+    bank_account_no: row.bank_account_no
+      ? row.bank_account_no.startsWith("****")
+        ? row.bank_account_no
+        : maskAccountNumber(row.bank_account_no)
+      : null,
+    bank_ifsc: row.bank_ifsc
+      ? row.bank_ifsc.includes("*")
+        ? row.bank_ifsc
+        : maskIfsc(row.bank_ifsc)
+      : null,
+  }));
 }
