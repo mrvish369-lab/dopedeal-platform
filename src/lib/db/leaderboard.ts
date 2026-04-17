@@ -25,13 +25,15 @@ export async function getLeaderboard(
   let userEarnings: { user_id: string; earned: number }[] = [];
 
   if (period === "alltime") {
+    // Use user_wallets (the live table)
     const { data } = await supabase
-      .from("dd_wallet_balances" as never)
+      .from("user_wallets")
       .select("user_id, total_earned")
       .order("total_earned", { ascending: false })
-      .limit(10) as { data: { user_id: string; total_earned: number }[] | null };
+      .limit(10);
 
-    userEarnings = (data ?? []).map((d) => ({ user_id: d.user_id, earned: d.total_earned }));
+    userEarnings = ((data ?? []) as { user_id: string; total_earned: number }[])
+      .map((d) => ({ user_id: d.user_id, earned: d.total_earned }));
   } else {
     const now = new Date();
     const since =
@@ -39,15 +41,15 @@ export async function getLeaderboard(
         ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         : new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Use coin_transactions (the live table)
     const { data: txns } = await supabase
-      .from("dd_wallet_transactions")
+      .from("coin_transactions")
       .select("user_id, amount")
-      .eq("direction", "credit")
-      .eq("status", "completed")
+      .gte("amount", 0) // credits only
       .gte("created_at", since.toISOString());
 
     const byUser: Record<string, number> = {};
-    for (const t of txns ?? []) {
+    for (const t of (txns ?? []) as { user_id: string; amount: number }[]) {
       byUser[t.user_id] = (byUser[t.user_id] ?? 0) + (t.amount ?? 0);
     }
 
@@ -66,7 +68,8 @@ export async function getLeaderboard(
     .in("user_id", userIds);
 
   const profileMap = Object.fromEntries(
-    (profiles ?? []).map((p) => [p.user_id, p])
+    ((profiles ?? []) as { user_id: string; full_name: string | null; city: string | null }[])
+      .map((p) => [p.user_id, p])
   );
 
   return userEarnings.map(({ user_id, earned }, i) => {
