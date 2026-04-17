@@ -4,9 +4,9 @@ import type { Database } from "./types";
 import { safeBrowserStorage } from "./safeStorage";
 import { supabaseAuthLock } from "./supabaseAuthLock";
 
-const SUPABASE_URL = "https://edxmwkeubdlioohxjwzp.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "https://oyvumfznbsidngombidu.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkeG13a2V1YmRsaW9vaHhqd3pwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MzY2NDUsImV4cCI6MjA4MjIxMjY0NX0.iTgaTGstZIl1th7pqzIdliKo-Ek-bGxTtBU1e_bbFrM";
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95dnVtZnpuYnNpZG5nb21iaWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3NDAzNTcsImV4cCI6MjA4NDMxNjM1N30.8PBc-U3IT99R5eTzI32BZvmtREek143yGcDVASG7Y4Q";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -21,4 +21,3 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   },
 });
-
