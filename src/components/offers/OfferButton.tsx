@@ -2,6 +2,7 @@ import { CSSProperties } from "react";
 import { ExternalLink, Gift, Star, Heart, Zap, Trophy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface OfferButtonProps {
   block: {
@@ -35,7 +36,7 @@ export const OfferButton = ({ block, onClick, style }: OfferButtonProps) => {
   const handleClick = () => {
     onClick(content.redirect_url);
     if (content.redirect_url) {
-      window.open(content.redirect_url, "_blank");
+      safeNavigate(content.redirect_url, { newTab: true });
     }
   };
 
