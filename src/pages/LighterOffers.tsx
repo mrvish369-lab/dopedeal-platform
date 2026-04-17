@@ -23,6 +23,7 @@ import { useCoinRewards } from "@/hooks/useCoinRewards";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Coins } from "lucide-react";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface OfferCard {
   id: string;
@@ -239,13 +240,9 @@ const LighterOffers = () => {
       return;
     }
 
-    // Viral deals: direct redirect
+    // Viral deals: direct redirect (validated)
     if (card.redirect_url) {
-      if (card.open_new_tab) {
-        window.open(card.redirect_url, "_blank");
-      } else {
-        window.location.href = card.redirect_url;
-      }
+      safeNavigate(card.redirect_url, { newTab: card.open_new_tab });
     }
   };
 
