@@ -58,6 +58,22 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+/**
+ * Injects CSS into a <style> element via a DOM ref, avoiding dangerouslySetInnerHTML.
+ * The css string must already be sanitized before passing here.
+ */
+const SafeStyle = ({ css }: { css: string }) => {
+  const ref = React.useRef<HTMLStyleElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.textContent = css;
+    }
+  }, [css]);
+
+  return <style ref={ref} />;
+};
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
@@ -65,26 +81,51 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+  /**
+   * Sanitize a CSS color value to prevent injection.
+   * Allows only hex colors, rgb/rgba/hsl/hsla functions, and named colors.
+   * Rejects anything containing semicolons, braces, or other CSS-breaking chars.
+   */
+  const sanitizeColor = (value: string | undefined): string | null => {
+    if (!value || typeof value !== "string") return null;
+    const trimmed = value.trim();
+    // Block any value that could break out of the CSS property context
+    if (/[;{}\\<>]/.test(trimmed)) return null;
+    // Allow: hex, rgb/rgba/hsl/hsla, named colors, CSS variables
+    if (
+      /^#[0-9a-fA-F]{3,8}$/.test(trimmed) ||
+      /^(rgb|rgba|hsl|hsla)\([^)]*\)$/.test(trimmed) ||
+      /^var\(--[a-zA-Z0-9-]+\)$/.test(trimmed) ||
+      /^[a-zA-Z]+$/.test(trimmed)
+    ) {
+      return trimmed;
+    }
+    return null;
+  };
+
+  const cssLines = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const vars = colorConfig
+        .map(([key, itemConfig]) => {
+          const rawColor =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color;
+          const safeColor = sanitizeColor(rawColor);
+          return safeColor ? `  --color-${key}: ${safeColor};` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (!vars) return "";
+      return `${prefix} [data-chart=${id}] {\n${vars}\n}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  if (!cssLines) return null;
+
+  // Use a <style> element via a ref to avoid dangerouslySetInnerHTML entirely
+  return <SafeStyle css={cssLines} />;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
