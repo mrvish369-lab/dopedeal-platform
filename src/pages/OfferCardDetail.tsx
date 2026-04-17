@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Play, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface OfferCardData {
   id: string;
@@ -52,11 +53,7 @@ const OfferCardDetail = () => {
 
   const handleCta = () => {
     if (!card?.redirect_url) return;
-    if (card.open_new_tab) {
-      window.open(card.redirect_url, "_blank");
-    } else {
-      window.location.href = card.redirect_url;
-    }
+    safeNavigate(card.redirect_url, { newTab: card.open_new_tab });
   };
 
   const getVideoEmbedUrl = (url: string): string | null => {
