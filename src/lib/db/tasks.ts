@@ -109,15 +109,13 @@ export async function reviewTaskSubmission(
     .eq("id", submissionId);
   if (error) return { error: error.message };
 
-  // Credit wallet on approval
+  // Credit wallet on approval — write to coin_transactions (live table)
   if (decision === "approved") {
-    await supabase.from("dd_wallet_transactions").insert({
+    await supabase.from("coin_transactions").insert({
       user_id: userId,
-      type: "task",
-      title: "Task approved",
-      amount: payout,
-      direction: "credit",
-      status: "completed",
+      transaction_type: "task",
+      description: "Task approved",
+      amount: payout, // positive = credit
       reference_id: submissionId,
     });
   }
