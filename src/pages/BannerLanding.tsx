@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { trackPageView } from "@/lib/tracking";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface BannerData {
   id: string;
@@ -65,7 +66,7 @@ const BannerLanding = () => {
   const handleCTA = () => {
     const url = banner?.landing_cta_url || banner?.redirect_url;
     if (url) {
-      window.open(url, "_blank");
+      safeNavigate(url, { newTab: true });
     }
   };
 
