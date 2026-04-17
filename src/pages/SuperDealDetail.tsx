@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractPlatformFromUrl, generateSmartButtonText } from "@/lib/platformUtils";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface SuperDeal {
   id: string;
@@ -191,11 +192,7 @@ const SuperDealDetail = () => {
 
   const handleGoToPlatform = () => {
     if (deal?.platform_url) {
-      let url = deal.platform_url.trim();
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        url = "https://" + url;
-      }
-      window.open(url, "_blank");
+      safeNavigate(deal.platform_url, { newTab: true });
     }
   };
 
