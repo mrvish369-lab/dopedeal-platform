@@ -2,6 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Content Security Policy — restricts script/connect/frame sources -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com;
+        connect-src 'self' https://*.supabase.co https://www.google-analytics.com https://ai.gateway.lovable.dev;
+        img-src 'self' data: blob: https:;
+        style-src 'self' 'unsafe-inline';
+        font-src 'self' data:;
+        frame-src 'self' https://www.youtube.com https://drive.google.com;
+        frame-ancestors 'none';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+      "
+    />
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-3921QFTMQQ"></script>
     <script>
