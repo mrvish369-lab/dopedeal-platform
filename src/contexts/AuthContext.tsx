@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,12 +38,30 @@ export const toE164 = (phone: string) => {
   return `+${digits}`;
 };
 
+/** All localStorage keys written by session.ts — must be cleared on sign-out. */
+const SESSION_STORAGE_KEYS = [
+  "dopedeal_session_id",
+  "dopedeal_session_created_at",
+  "dopedeal_anonymous_id",
+  "dopedeal_session_shop_id",
+  "dopedeal_session_batch_id",
+  "dopedeal_session_qr_type",
+  "dopedeal_session_campaign_slug",
+  "dopedeal_session_qr_url",
+];
+
+/** Client-side OTP cooldown: minimum seconds between requests per email. */
+const OTP_COOLDOWN_MS = 60_000; // 60 seconds
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletBalances | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+
+  // Track last OTP send time per email to enforce client-side cooldown
+  const otpLastSentRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -77,13 +95,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchWallet = async (userId: string) => {
+    // Try dd_wallet_balances view first (maps user_wallets columns)
     const { data } = await supabase
-      .from("dd_wallet_balances" as never)
-      .select("available_balance,pending_balance,referral_balance,total_earned")
+      .from("user_wallets" as never)
+      .select("coins_balance,total_earned,total_spent")
       .eq("user_id", userId)
       .single();
-    if (data) setWallet(data as WalletBalances);
-    else setWallet({ available_balance: 0, pending_balance: 0, referral_balance: 0, total_earned: 0 });
+    if (data) {
+      const d = data as { coins_balance: number; total_earned: number; total_spent: number };
+      setWallet({
+        available_balance: d.coins_balance ?? 0,
+        pending_balance: 0,
+        referral_balance: 0,
+        total_earned: d.total_earned ?? 0,
+      });
+    } else {
+      setWallet({ available_balance: 0, pending_balance: 0, referral_balance: 0, total_earned: 0 });
+    }
   };
 
   const fetchVerificationStatus = async (userId: string) => {
@@ -91,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .from("dd_social_profiles")
       .select("status")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle(); // use maybeSingle so no error when row doesn't exist
     setIsVerified(data?.status === "approved");
   };
 
@@ -107,20 +135,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return (error as Error)?.message ?? "Something went wrong. Please try again.";
   };
 
-  /** Send email OTP via Edge Function → Resend API (bypasses Supabase SMTP entirely) */
+  /**
+   * Send email OTP via Edge Function → Resend API.
+   * Enforces a 60-second client-side cooldown per email address.
+   */
   const sendOtp = async (email: string): Promise<{ error: string | null }> => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Client-side rate limit check
+    const lastSent = otpLastSentRef.current.get(normalizedEmail) ?? 0;
+    const elapsed = Date.now() - lastSent;
+    if (elapsed < OTP_COOLDOWN_MS) {
+      const remaining = Math.ceil((OTP_COOLDOWN_MS - elapsed) / 1000);
+      return { error: `Please wait ${remaining} seconds before requesting another OTP.` };
+    }
+
     const { data, error } = await supabase.functions.invoke("send-otp", {
-      body: { email },
+      body: { email: normalizedEmail },
     });
-    if (error) return { error: await extractFnError(error) };
+
+    if (error) {
+      const msg = await extractFnError(error);
+      // On rate-limit from server (429), still update the cooldown timer
+      otpLastSentRef.current.set(normalizedEmail, Date.now());
+      return { error: msg };
+    }
     if (data?.error) return { error: data.error };
+
+    // Record successful send time
+    otpLastSentRef.current.set(normalizedEmail, Date.now());
     return { error: null };
   };
 
   /** Verify OTP via Edge Function, then create real Supabase session */
   const verifyOtp = async (email: string, otp: string): Promise<{ error: string | null }> => {
     const { data, error } = await supabase.functions.invoke("verify-otp", {
-      body: { email, otp },
+      body: { email: email.trim().toLowerCase(), otp },
     });
     if (error) return { error: await extractFnError(error) };
     if (data?.error) return { error: data.error };
@@ -139,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from("dd_user_profiles")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!existing) {
         await supabase.from("dd_user_profiles").insert({
@@ -164,6 +214,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+
+    // Clear all session-related localStorage keys to prevent stale data leakage
+    SESSION_STORAGE_KEYS.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore storage errors
+      }
+    });
+
     setUser(null);
     setSession(null);
     setWallet(null);
