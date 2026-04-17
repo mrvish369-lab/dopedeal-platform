@@ -2,6 +2,7 @@ import { CSSProperties } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface OfferBannerProps {
   block: {
@@ -27,11 +28,7 @@ export const OfferBanner = ({ block, onClick, style }: OfferBannerProps) => {
   const handleClick = () => {
     onClick(content.redirect_url);
     if (content.redirect_url) {
-      if (content.open_new_tab) {
-        window.open(content.redirect_url, "_blank");
-      } else {
-        window.location.href = content.redirect_url;
-      }
+      safeNavigate(content.redirect_url, { newTab: content.open_new_tab });
     }
   };
 
