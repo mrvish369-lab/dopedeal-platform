@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { safeNavigate } from "@/lib/urlValidation";
 
 interface OfferCard {
   id: string;
@@ -204,15 +205,7 @@ const CategoryDeals = () => {
     }, { cardId: card.id });
 
     if (card.redirect_url) {
-      let url = card.redirect_url.trim();
-      if (url && !url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/")) {
-        url = "https://" + url;
-      }
-      if (card.open_new_tab || url.startsWith("http")) {
-        window.open(url, "_blank");
-      } else {
-        window.location.href = url;
-      }
+      safeNavigate(card.redirect_url, { newTab: card.open_new_tab });
     }
   };
 
