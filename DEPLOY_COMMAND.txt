@@ -1,0 +1,58 @@
+# 🚀 SIMPLE DEPLOYMENT COMMAND
+
+## Bas ye ek command run karo:
+
+supabase functions deploy send-otp
+
+
+## Agar error aaye toh pehle login karo:
+
+supabase login
+
+
+## Agar project link nahi hai toh:
+
+supabase link --project-ref oyvumfznbsidngombidu
+
+
+## Phir deploy karo:
+
+supabase functions deploy send-otp
+
+
+## ✅ Success Message Dikhega:
+
+Deploying function send-otp...
+Function send-otp deployed successfully
+
+
+## 🎯 Testing
+
+### Email OTP Test:
+1. App kholo
+2. Login page pe jao
+3. Email daalo
+4. "Send OTP to Email" click karo
+5. Email check karo
+
+### Telegram OTP Test:
+1. @userinfobot se Chat ID lo
+2. Login page pe jao
+3. "Send OTP via Telegram" check karo
+4. Chat ID daalo
+5. "Send OTP to Telegram" click karo
+6. Telegram check karo
+
+
+## 📝 Environment Variables (Already Set by You)
+
+✅ FROM_EMAIL = onboarding@resend.dev
+✅ TELEGRAM_BOT_TOKEN = (your bot token)
+✅ RESEND_API_KEY = (already set)
+✅ SUPABASE_URL = (already set)
+✅ SUPABASE_SERVICE_ROLE_KEY = (already set)
+
+
+## ✨ Done!
+
+Bas deploy karo aur test karo! 🚀

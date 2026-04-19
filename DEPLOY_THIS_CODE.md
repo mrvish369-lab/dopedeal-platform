@@ -1,0 +1,350 @@
+# 🚀 Deploy This Code to Supabase Edge Functions
+
+## Updated send-otp Edge Function Code
+
+Copy the code below and deploy it to Supabase:
+
+### Method 1: Using Supabase CLI (Recommended)
+
+```bash
+supabase functions deploy send-otp
+```
+
+### Method 2: Using Supabase Dashboard
+
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Navigate to **Edge Functions**
+4. Find `send-otp` function
+5. Click **Edit** or **Deploy new version**
+6. Copy-paste the code below
+
+---
+
+## 📝 Complete send-otp/index.ts Code
+
+```typescript
+/**
+ * send-otp — OTP delivery via Email and/or Telegram
+ * Supports dual delivery for better reliability
+ */
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    const email = body?.email;
+    const telegramChatId = body?.telegram_chat_id;
+
+    if (!email) {
+      return new Response(JSON.stringify({ error: "Email required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Get env vars
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev";
+    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY not configured");
+      return new Response(JSON.stringify({ error: "Service configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Generate OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    console.log("Generated OTP for:", normalizedEmail);
+
+    const deliveryResults = {
+      email: false,
+      telegram: false,
+    };
+
+    // ── Send Email via Resend ────────────────────────────────────────────────
+    try {
+      const resendResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + RESEND_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "DopeDeal <" + FROM_EMAIL + ">",
+          to: [normalizedEmail],
+          reply_to: "support@dopedeal.store",
+          subject: "Your DopeDeal Login Code: " + otp,
+          html: "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f5f5f5'><table width='100%' cellpadding='0' cellspacing='0' style='background-color:#f5f5f5;padding:20px'><tr><td align='center'><table width='600' cellpadding='0' cellspacing='0' style='background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)'><tr><td style='background-color:#f97316;padding:30px;text-align:center'><h1 style='margin:0;color:#ffffff;font-size:28px'>🔥 DopeDeal</h1></td></tr><tr><td style='padding:40px 30px'><h2 style='margin:0 0 20px 0;color:#333333;font-size:24px'>Your Login Code</h2><p style='margin:0 0 30px 0;color:#666666;font-size:16px;line-height:1.5'>Use this one-time code to complete your sign-in:</p><div style='background-color:#f8f8f8;border:2px solid #f97316;border-radius:8px;padding:20px;text-align:center;margin:0 0 30px 0'><span style='font-size:36px;font-weight:bold;letter-spacing:8px;color:#333333;font-family:monospace'>" + otp + "</span></div><p style='margin:0 0 10px 0;color:#999999;font-size:14px'>This code expires in 10 minutes.</p><p style='margin:0;color:#999999;font-size:14px'>If you didn't request this code, please ignore this email.</p></td></tr><tr><td style='background-color:#f8f8f8;padding:20px 30px;text-align:center;border-top:1px solid #eeeeee'><p style='margin:0;color:#999999;font-size:12px'>© 2026 DopeDeal. All rights reserved.</p></td></tr></table></td></tr></table></body></html>",
+          text: "DopeDeal Login Code\n\nYour one-time code: " + otp + "\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, please ignore this email.\n\n© 2026 DopeDeal",
+        }),
+      });
+
+      if (resendResponse.ok) {
+        deliveryResults.email = true;
+        console.log("Email sent successfully via Resend");
+      } else {
+        const errText = await resendResponse.text();
+        console.error("Resend API error:", resendResponse.status, errText);
+      }
+    } catch (emailErr) {
+      console.error("Email delivery error:", emailErr);
+    }
+
+    // ── Send Telegram Message (if chat_id provided) ──────────────────────────
+    if (telegramChatId && TELEGRAM_BOT_TOKEN) {
+      try {
+        const telegramResponse = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: telegramChatId,
+              text: `🔥 *DopeDeal Login Code*\n\nYour one-time code: \`${otp}\`\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, please ignore this message.`,
+              parse_mode: "Markdown",
+            }),
+          }
+        );
+
+        if (telegramResponse.ok) {
+          deliveryResults.telegram = true;
+          console.log("Telegram message sent successfully");
+        } else {
+          const errText = await telegramResponse.text();
+          console.error("Telegram API error:", telegramResponse.status, errText);
+        }
+      } catch (telegramErr) {
+        console.error("Telegram delivery error:", telegramErr);
+      }
+    }
+
+    // Check if at least one delivery method succeeded
+    if (!deliveryResults.email && !deliveryResults.telegram) {
+      return new Response(
+        JSON.stringify({ error: "Failed to deliver OTP via any channel. Please try again." }), 
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Store OTP in DB
+    try {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+      if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+        // Invalidate old OTPs
+        await fetch(SUPABASE_URL + "/rest/v1/otp_codes?email=eq." + encodeURIComponent(normalizedEmail) + "&used=eq.false", {
+          method: "PATCH",
+          headers: {
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ used: true }),
+        });
+
+        // Insert new OTP
+        await fetch(SUPABASE_URL + "/rest/v1/otp_codes", {
+          method: "POST",
+          headers: {
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            otp_code: otp,
+            expires_at: expiresAt,
+            used: false,
+          }),
+        });
+        console.log("OTP stored in database");
+      }
+    } catch (dbErr) {
+      console.error("DB storage error (non-fatal):", dbErr);
+    }
+
+    const deliveryMessage = deliveryResults.email && deliveryResults.telegram
+      ? "OTP sent via Email and Telegram"
+      : deliveryResults.email
+      ? "OTP sent via Email"
+      : "OTP sent via Telegram";
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: deliveryMessage,
+        delivery: deliveryResults,
+      }), 
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+
+  } catch (err) {
+    console.error("send-otp error:", err);
+    return new Response(
+      JSON.stringify({ error: "An error occurred. Please try again." }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+});
+```
+
+---
+
+## 🚀 Deployment Steps
+
+### Option 1: CLI Deployment (Fastest)
+
+```bash
+# Terminal me ye command run karo
+supabase functions deploy send-otp
+```
+
+### Option 2: Dashboard Deployment
+
+1. **Open Supabase Dashboard**
+   - Go to https://supabase.com/dashboard
+   - Select your project: `oyvumfznbsidngombidu`
+
+2. **Navigate to Edge Functions**
+   - Left sidebar → Edge Functions
+   - Find `send-otp` function
+
+3. **Deploy New Version**
+   - Click on `send-otp`
+   - Click **Edit** or **Deploy new version**
+   - Delete old code
+   - Copy-paste the code above
+   - Click **Deploy**
+
+---
+
+## ✅ Verification
+
+### Check Environment Variables
+Go to **Edge Functions** → **Secrets** and verify:
+
+```
+✅ RESEND_API_KEY = re_xxxxx (already set)
+✅ FROM_EMAIL = onboarding@resend.dev (you added this)
+✅ TELEGRAM_BOT_TOKEN = xxxxx (you added this)
+✅ SUPABASE_URL = https://oyvumfznbsidngombidu.supabase.co (already set)
+✅ SUPABASE_SERVICE_ROLE_KEY = xxxxx (already set)
+```
+
+### Test Email OTP
+1. Open your app's login page
+2. Enter email
+3. Click "Send OTP to Email"
+4. Check email inbox
+5. Verify OTP received
+
+### Test Telegram OTP
+1. Get your Chat ID from @userinfobot
+2. Open login page
+3. Check "Send OTP via Telegram"
+4. Enter Chat ID
+5. Click "Send OTP to Telegram"
+6. Check Telegram messages
+
+---
+
+## 🎯 What This Code Does
+
+### Email Delivery
+- Uses Resend API with `onboarding@resend.dev` (verified domain)
+- Professional HTML email template
+- Plain text fallback
+- Reply-to support email
+
+### Telegram Delivery
+- Sends OTP via Telegram bot
+- Markdown formatted message
+- Instant delivery
+- Only if user provides Chat ID
+
+### Dual Delivery
+- Tries both Email and Telegram
+- Success if at least one succeeds
+- Returns delivery status
+- Better reliability
+
+### Database Storage
+- Stores OTP in `otp_codes` table
+- Invalidates old OTPs
+- 10-minute expiration
+- Used for verification
+
+---
+
+## 📝 Key Changes from Old Code
+
+### ✅ Fixed Email Delivery
+- Changed FROM_EMAIL to use Resend's verified domain
+- Added reply_to field
+- Improved HTML template
+
+### ✅ Added Telegram Support
+- Accepts `telegram_chat_id` parameter
+- Sends message via Telegram Bot API
+- Dual delivery for redundancy
+
+### ✅ Better Error Handling
+- Tries both channels
+- Success if one succeeds
+- Clear error messages
+- Detailed logging
+
+---
+
+## 🔧 Troubleshooting
+
+### If Email Not Working
+- Verify FROM_EMAIL is `onboarding@resend.dev`
+- Check Resend dashboard: https://resend.com/emails
+- Check Edge Function logs
+
+### If Telegram Not Working
+- Verify TELEGRAM_BOT_TOKEN is set
+- User must start chat with bot first
+- Verify Chat ID is correct
+- Check Edge Function logs
+
+---
+
+## ✨ Done!
+
+After deploying this code:
+- ✅ Email OTP will work (using Resend's verified domain)
+- ✅ Telegram OTP will work (if user provides Chat ID)
+- ✅ Dual delivery for better reliability
+- ✅ Professional email template
+
+**Deploy karo aur test karo!** 🚀

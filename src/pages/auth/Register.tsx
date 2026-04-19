@@ -24,8 +24,7 @@ export default function Register() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useTelegram, setUseTelegram] = useState(false);
-  const [telegramChatId, setTelegramChatId] = useState("");
+  const [useEmail, setUseEmail] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -36,17 +35,29 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
       return setError("Enter a valid email address");
     
-    // Validate Telegram Chat ID if Telegram option is enabled
-    if (useTelegram && !telegramChatId.trim()) {
-      return setError("Please enter your Telegram Chat ID");
-    }
-    
     setLoading(true);
-    const options = useTelegram ? { telegram_chat_id: telegramChatId.trim() } : undefined;
-    const { error: err } = await sendOtp(form.email.trim().toLowerCase(), options);
-    setLoading(false);
-    if (err) return setError(err);
-    setStep("otp");
+
+    if (useEmail) {
+      const { error: err } = await sendOtp(form.email.trim().toLowerCase());
+      setLoading(false);
+      if (err) return setError(err);
+      setStep("otp");
+    } else {
+      const { data, error: err } = await supabase.functions.invoke("generate-telegram-token", {
+        body: { email: form.email.trim().toLowerCase() },
+      });
+      
+      setLoading(false);
+      
+      if (err || data?.error) {
+        return setError(err?.message || data?.error || "Failed to generate Telegram link");
+      }
+
+      const botUsername = "DopeDealOTPBot";
+      const telegramUrl = `https://t.me/${botUsername}?start=${data.token}`;
+      window.open(telegramUrl, '_blank');
+      setStep("otp");
+    }
   };
 
   // ── Step 2: Verify OTP & save profile ────────────────────────────────────
@@ -178,64 +189,27 @@ export default function Register() {
                     placeholder="DOPE-XXXX" className="w-full border border-brand-border rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green" />
                 </div>
 
-                {/* Telegram OTP Option */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useTelegram}
-                      onChange={(e) => setUseTelegram(e.target.checked)}
-                      className="w-4 h-4 rounded border-brand-border text-brand-green focus:ring-brand-green"
-                    />
-                    <span className="text-xs font-semibold text-brand-text-dim flex items-center gap-1.5">
-                      <Send className="w-3.5 h-3.5 text-brand-green" />
-                      Send OTP via Telegram
-                    </span>
-                  </label>
-
-                  {useTelegram && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2"
-                    >
-                      <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
-                        <Send className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
-                        <input
-                          type="text"
-                          value={telegramChatId}
-                          onChange={(e) => setTelegramChatId(e.target.value)}
-                          placeholder="Your Telegram Chat ID"
-                          className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none"
-                        />
-                      </div>
-                      <p className="text-[10px] text-brand-text-faint px-1">
-                        Don't know your Chat ID?{" "}
-                        <a
-                          href="https://t.me/userinfobot"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-green font-semibold hover:underline"
-                        >
-                          Get it from @userinfobot
-                        </a>
-                      </p>
-                    </motion.div>
-                  )}
-                </div>
-
                 {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl p-3">{error}</p>}
 
                 <button onClick={handleSendOtp} disabled={loading}
                   className="w-full bg-brand-green hover:bg-brand-green-dim text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
-                  {loading ? "Sending OTP..." : (
+                  {loading ? "Sending..." : (
                     <>
-                      <span>Send OTP {useTelegram ? "to Telegram" : "to Email"}</span>
+                      <Send className="w-4 h-4" />
+                      <span>Send OTP via Telegram</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
+
+                <div className="text-center">
+                  <button
+                    onClick={() => setUseEmail(!useEmail)}
+                    className="text-[10px] text-brand-text-faint hover:text-brand-text transition-colors"
+                  >
+                    {useEmail ? "← Use Telegram (Recommended)" : "Use Email (Beta - May not work reliably)"}
+                  </button>
+                </div>
               </div>
 
               <p className="text-center text-xs text-brand-text-faint mt-5">
@@ -253,15 +227,17 @@ export default function Register() {
                 <Shield className="w-6 h-6 text-brand-green" />
               </div>
               <h2 className="font-display font-extrabold text-xl text-brand-forest mb-1">
-                {useTelegram ? "Check Your Telegram" : "Check Your Email"}
+                {useEmail ? "Check Your Email" : "Check Your Telegram"}
               </h2>
               <p className="text-sm text-brand-text-dim mb-1">
-                OTP sent to {useTelegram ? "your Telegram" : <span className="font-semibold">{form.email}</span>}
+                {useEmail 
+                  ? <>OTP sent to <span className="font-semibold">{form.email}</span></>
+                  : "OTP sent to your Telegram"}
               </p>
               <p className="text-xs text-brand-text-faint mb-6">
-                {useTelegram 
-                  ? "Check your Telegram messages. Valid for 10 minutes."
-                  : "Check your inbox (and spam folder). Valid for 10 minutes."}
+                {useEmail 
+                  ? "Check your inbox (and spam folder). Valid for 10 minutes."
+                  : "Check your Telegram messages. Valid for 10 minutes."}
               </p>
 
               <div className="space-y-4">
