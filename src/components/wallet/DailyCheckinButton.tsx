@@ -20,7 +20,15 @@ export const DailyCheckinButton = () => {
     if (checkinStatus && !checkinStatus.canCheckin && checkinStatus.nextCheckinAt) {
       const updateTimer = () => {
         const now = new Date();
-        const diff = checkinStatus.nextCheckinAt!.getTime() - now.getTime();
+        const nextCheckin = new Date(checkinStatus.nextCheckinAt);
+        
+        // Validate that nextCheckin is a valid date
+        if (isNaN(nextCheckin.getTime())) {
+          setTimeRemaining("");
+          return;
+        }
+        
+        const diff = nextCheckin.getTime() - now.getTime();
 
         if (diff <= 0) {
           setTimeRemaining("");
@@ -30,6 +38,12 @@ export const DailyCheckinButton = () => {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        // Ensure values are valid numbers before calling toString
+        if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+          setTimeRemaining("");
+          return;
+        }
 
         setTimeRemaining(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
       };

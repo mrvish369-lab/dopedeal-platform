@@ -172,7 +172,7 @@ export const CoinEarningsSummary = () => {
                 +{summary?.totalFromCheckins || 0}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {checkinStatus.streak > 0 ? `🔥 ${checkinStatus.streak} day streak` : "daily bonus"}
+                {checkinStatus && checkinStatus.streak > 0 ? `🔥 ${checkinStatus.streak} day streak` : "daily bonus"}
               </p>
             </div>
           </div>

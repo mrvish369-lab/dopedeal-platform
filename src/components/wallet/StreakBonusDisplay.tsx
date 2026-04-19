@@ -21,7 +21,7 @@ const STREAK_MILESTONES: StreakMilestone[] = [
 export const StreakBonusDisplay = () => {
   const { user, checkinStatus } = useAuth();
 
-  if (!user) return null;
+  if (!user || !checkinStatus) return null;
 
   const currentStreak = checkinStatus.streak || 0;
   
