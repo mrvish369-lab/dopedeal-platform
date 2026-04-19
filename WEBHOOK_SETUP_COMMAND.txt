@@ -1,0 +1,137 @@
+# 🔗 Telegram Webhook Setup Command
+
+## ✅ Already Done:
+- ✅ SQL migration run kiya
+- ✅ Edge Functions deploy kiye
+- ✅ Bot username updated: dopedealbot
+- ✅ JWT settings configured (OFF)
+- ✅ Code pushed to GitHub
+
+---
+
+## ⏳ Last Step: Webhook Setup
+
+### Method 1: Browser Se (Easiest) ⭐
+
+Apne bot token ke saath ye URL browser me kholo:
+
+```
+https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook
+```
+
+**Example:**
+```
+https://api.telegram.org/bot123456789:ABCdefGHIjklMNOpqrsTUVwxyz/setWebhook?url=https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook
+```
+
+**Success Response:**
+```json
+{"ok":true,"result":true,"description":"Webhook was set"}
+```
+
+---
+
+### Method 2: Terminal/CMD Se
+
+```bash
+curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook"
+```
+
+---
+
+### Method 3: PowerShell Se (Windows)
+
+```powershell
+Invoke-WebRequest -Uri "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook"
+```
+
+---
+
+## 🔍 Verify Webhook
+
+Browser me ye URL kholo:
+
+```
+https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
+```
+
+**Expected Response:**
+```json
+{
+  "ok": true,
+  "result": {
+    "url": "https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook",
+    "has_custom_certificate": false,
+    "pending_update_count": 0,
+    "max_connections": 40
+  }
+}
+```
+
+---
+
+## 📝 Bot Token Kaha Se Milega?
+
+1. Telegram me @BotFather kholo
+2. `/mybots` send karo
+3. Apna bot select karo: dopedealbot
+4. "API Token" click karo
+5. Token copy karo
+
+---
+
+## ✅ JWT Settings (Already Configured)
+
+Supabase Dashboard me check karo:
+- Edge Functions → generate-telegram-token → Settings
+- Edge Functions → telegram-webhook → Settings
+
+**JWT Verification:** OFF (disabled) hona chahiye dono me
+
+Agar ON hai toh:
+1. Function settings me jao
+2. "Verify JWT" toggle OFF karo
+3. Save karo
+
+---
+
+## 🧪 Test Karo
+
+1. App kholo (production URL)
+2. Login page pe jao
+3. Email daalo
+4. "Send OTP via Telegram" click karo
+5. Telegram bot open hoga
+6. "START" click karo
+7. Bot OTP send karega
+8. OTP copy karke website pe paste karo
+9. Login successful!
+
+---
+
+## 🎯 Summary
+
+**Completed:**
+- ✅ Database migration
+- ✅ Edge Functions deployed
+- ✅ Bot username: dopedealbot
+- ✅ JWT: OFF (both functions)
+- ✅ Code deployed
+
+**Remaining:**
+- ⏳ Webhook setup (1 minute)
+- ⏳ Test
+
+**Webhook URL:**
+```
+https://oyvumfznbsidngombidu.supabase.co/functions/v1/telegram-webhook
+```
+
+**Bot Username:**
+```
+dopedealbot
+```
+
+---
+
+**Bas webhook set karo aur test karo!** 🚀
