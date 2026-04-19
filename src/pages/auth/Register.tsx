@@ -53,7 +53,7 @@ export default function Register() {
         return setError(err?.message || data?.error || "Failed to generate Telegram link");
       }
 
-      const botUsername = "DopeDealOTPBot";
+      const botUsername = "dopedealbot";
       const telegramUrl = `https://t.me/${botUsername}?start=${data.token}`;
       window.open(telegramUrl, '_blank');
       setStep("otp");

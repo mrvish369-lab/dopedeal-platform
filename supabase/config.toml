@@ -6,7 +6,6 @@ verify_jwt = false
 [functions.generate-button-name]
 verify_jwt = false
 
-# OTP functions — no JWT required (called before user is authenticated)
 [functions.send-otp]
 verify_jwt = false
 
@@ -15,4 +14,11 @@ verify_jwt = false
 
 # Transactional email — called server-side after auth
 [functions.send-email]
+verify_jwt = false
+
+# Telegram OTP functions — no JWT required (called before user is authenticated)
+[functions.generate-telegram-token]
+verify_jwt = false
+
+[functions.telegram-webhook]
 verify_jwt = false
