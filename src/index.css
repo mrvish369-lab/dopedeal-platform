@@ -26,8 +26,8 @@
     --background: 240 10% 6%;
     --foreground: 0 0% 98%;
 
-    /* Electric Coral/Orange - Primary Brand */
-    --primary: 16 100% 60%;
+    /* Brand Green - Primary Brand (changed from orange) */
+    --primary: 142 70% 45%;
     --primary-foreground: 0 0% 100%;
 
     /* WhatsApp Green - Secondary/Success */
@@ -56,12 +56,12 @@
     /* Border and inputs */
     --border: 240 5% 20%;
     --input: 240 5% 20%;
-    --ring: 16 100% 60%;
+    --ring: 142 70% 45%;
 
     --radius: 0.75rem;
 
     /* Custom DopeDeal tokens */
-    --glow-primary: 16 100% 60%;
+    --glow-primary: 142 70% 45%;
     --glow-secondary: 142 70% 45%;
     --glow-accent: 270 95% 65%;
     
@@ -73,12 +73,12 @@
     /* Sidebar */
     --sidebar-background: 240 10% 8%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 16 100% 60%;
+    --sidebar-primary: 142 70% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 5% 15%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 5% 20%;
-    --sidebar-ring: 16 100% 60%;
+    --sidebar-ring: 142 70% 45%;
 
     /* Geo Intelligence Map marker colors */
     --map-high: 142 70% 45%;
@@ -142,7 +142,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 6%;
 
-    --primary: 16 100% 50%;
+    --primary: 142 70% 40%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 142 70% 40%;
@@ -159,7 +159,7 @@
 
     --border: 240 5% 90%;
     --input: 240 5% 90%;
-    --ring: 16 100% 50%;
+    --ring: 142 70% 40%;
   }
 }
 

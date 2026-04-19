@@ -29,6 +29,8 @@ import {
   Package,
   Menu,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -96,10 +98,20 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, signOut, isLoading, isAdmin, authError, refetchAuth } = useAdminAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["Overview"]);
 
   // Close sidebar on navigation (mobile)
   const handleNavClick = () => {
     setIsSidebarOpen(false);
+  };
+
+  // Toggle section expansion
+  const toggleSection = (title: string) => {
+    setExpandedSections(prev =>
+      prev.includes(title)
+        ? prev.filter(t => t !== title)
+        : [...prev, title]
+    );
   };
 
   // Show loading state while auth is being checked (with timeout hint)
@@ -237,36 +249,57 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.title}>
-              <h3 className="px-4 text-xs font-semibold text-brand-text-faint uppercase tracking-wider mb-2">
-                {section.title}
-              </h3>
-              <div className="space-y-0.5">
-                {section.items.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={handleNavClick}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium",
-                        isActive
-                          ? "bg-brand-green text-white shadow-md shadow-brand-green/20"
-                          : "text-brand-text-dim hover:text-brand-forest hover:bg-brand-green/5"
-                      )}
-                    >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                })}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {NAV_SECTIONS.map((section) => {
+            const isExpanded = expandedSections.includes(section.title);
+            const hasActiveItem = section.items.some(item => location.pathname === item.path);
+            
+            return (
+              <div key={section.title}>
+                <button
+                  onClick={() => toggleSection(section.title)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-4 py-2 rounded-lg transition-colors text-sm font-semibold",
+                    hasActiveItem || isExpanded
+                      ? "text-brand-green bg-brand-green/5"
+                      : "text-brand-text-dim hover:text-brand-forest hover:bg-brand-green/5"
+                  )}
+                >
+                  <span className="uppercase tracking-wide text-xs">{section.title}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+                
+                {isExpanded && (
+                  <div className="mt-1 space-y-0.5 pl-2">
+                    {section.items.map((item) => {
+                      const isActive = location.pathname === item.path;
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={handleNavClick}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium",
+                            isActive
+                              ? "bg-brand-green text-white shadow-sm"
+                              : "text-brand-text-dim hover:text-brand-forest hover:bg-brand-green/5"
+                          )}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* User Profile Section */}

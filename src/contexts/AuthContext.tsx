@@ -9,17 +9,33 @@ interface WalletBalances {
   total_earned: number;
 }
 
+interface CheckinStatus {
+  canCheckin: boolean;
+  streak: number;
+  nextCheckinAt: Date | null;
+  lastCheckinDate: string | null;
+}
+
+interface CheckinResult {
+  success: boolean;
+  coins?: number;
+  streak?: number;
+  error?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   wallet: WalletBalances | null;
   isVerified: boolean;
+  checkinStatus: CheckinStatus;
   // Email OTP auth (free — no SMS provider needed) + Telegram support
   sendOtp: (email: string, options?: { telegram_chat_id?: string }) => Promise<{ error: string | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshWallet: () => Promise<void>;
+  performDailyCheckin: () => Promise<CheckinResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +75,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletBalances | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<CheckinStatus>({
+    canCheckin: false,
+    streak: 0,
+    nextCheckinAt: null,
+    lastCheckinDate: null,
+  });
 
   // Track last OTP send time per email to enforce client-side cooldown
   const otpLastSentRef = useRef<Map<string, number>>(new Map());
@@ -72,10 +94,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setTimeout(() => {
             fetchWallet(session.user.id);
             fetchVerificationStatus(session.user.id);
+            fetchCheckinStatus(session.user.id);
           }, 0);
         } else {
           setWallet(null);
           setIsVerified(false);
+          setCheckinStatus({
+            canCheckin: false,
+            streak: 0,
+            nextCheckinAt: null,
+            lastCheckinDate: null,
+          });
         }
         setLoading(false);
       }
@@ -87,6 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         fetchWallet(session.user.id);
         fetchVerificationStatus(session.user.id);
+        fetchCheckinStatus(session.user.id);
       }
       setLoading(false);
     });
@@ -121,6 +151,95 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq("user_id", userId)
       .maybeSingle(); // use maybeSingle so no error when row doesn't exist
     setIsVerified(data?.status === "approved");
+  };
+
+  const fetchCheckinStatus = async (userId: string) => {
+    try {
+      // Get the last checkin record
+      const { data: lastCheckin } = await supabase
+        .from("daily_checkins")
+        .select("checkin_date, streak_day")
+        .eq("user_id", userId)
+        .order("checkin_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      if (!lastCheckin) {
+        // No checkins yet - user can checkin
+        setCheckinStatus({
+          canCheckin: true,
+          streak: 0,
+          nextCheckinAt: null,
+          lastCheckinDate: null,
+        });
+        return;
+      }
+
+      const lastCheckinDate = lastCheckin.checkin_date;
+      const canCheckin = lastCheckinDate !== today;
+
+      // Calculate next checkin time (midnight of next day)
+      let nextCheckinAt: Date | null = null;
+      if (!canCheckin) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        nextCheckinAt = tomorrow;
+      }
+
+      setCheckinStatus({
+        canCheckin,
+        streak: lastCheckin.streak_day || 0,
+        nextCheckinAt,
+        lastCheckinDate,
+      });
+    } catch (error) {
+      console.error("Error fetching checkin status:", error);
+      // Set safe defaults on error
+      setCheckinStatus({
+        canCheckin: false,
+        streak: 0,
+        nextCheckinAt: null,
+        lastCheckinDate: null,
+      });
+    }
+  };
+
+  const performDailyCheckin = async (): Promise<CheckinResult> => {
+    if (!user) {
+      return { success: false, error: "User not authenticated" };
+    }
+
+    try {
+      // Call the database function to process checkin
+      const { data, error } = await supabase.rpc("process_daily_checkin", {
+        p_user_id: user.id,
+      });
+
+      if (error) {
+        console.error("Checkin error:", error);
+        return { success: false, error: error.message };
+      }
+
+      if (!data.success) {
+        return { success: false, error: data.error || "Failed to check in" };
+      }
+
+      // Refresh wallet and checkin status
+      await fetchWallet(user.id);
+      await fetchCheckinStatus(user.id);
+
+      return {
+        success: true,
+        coins: data.coins_earned,
+        streak: data.streak_day,
+      };
+    } catch (error) {
+      console.error("Checkin error:", error);
+      return { success: false, error: "Something went wrong. Please try again." };
+    }
   };
 
   /** Extract the real error body from a Supabase FunctionsHttpError */
@@ -234,6 +353,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setWallet(null);
     setIsVerified(false);
+    setCheckinStatus({
+      canCheckin: false,
+      streak: 0,
+      nextCheckinAt: null,
+      lastCheckinDate: null,
+    });
   };
 
   const refreshWallet = async () => {
@@ -242,8 +367,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, session, loading, wallet, isVerified,
-      sendOtp, verifyOtp, signOut, refreshWallet,
+      user, session, loading, wallet, isVerified, checkinStatus,
+      sendOtp, verifyOtp, signOut, refreshWallet, performDailyCheckin,
     }}>
       {children}
     </AuthContext.Provider>
