@@ -17,8 +17,6 @@ export default function Register() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
-    phone: "",
-    city: "",
     referralCode: refCode,
   });
   const [otp, setOtp] = useState("");
@@ -53,10 +51,11 @@ export default function Register() {
         return setError(err?.message || data?.error || "Failed to generate Telegram link");
       }
 
+      setStep("otp");
+
       const botUsername = "dopedealbot";
       const telegramUrl = `https://t.me/${botUsername}?start=${data.token}`;
-      window.open(telegramUrl, '_blank');
-      setStep("otp");
+      window.location.href = telegramUrl;
     }
   };
 
@@ -76,8 +75,8 @@ export default function Register() {
         user_id: user.id,
         full_name: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
-        phone: form.phone ? toE164(form.phone) : null,
-        city: form.city.trim() || null,
+        phone: null,
+        city: null,
       }, { onConflict: "user_id" });
 
       // Handle referral
@@ -159,27 +158,6 @@ export default function Register() {
                     <Mail className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
                     <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
                       placeholder="you@example.com" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">Mobile Number <span className="text-brand-text-faint font-normal">(optional)</span></label>
-                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
-                    <div className="flex items-center gap-1.5 px-3 py-2.5 border-r border-brand-border bg-brand-surface2">
-                      <Phone className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-sm font-semibold text-brand-text-dim">+91</span>
-                    </div>
-                    <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="9876543210" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" maxLength={10} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-brand-text-dim block mb-1.5">City</label>
-                  <div className="flex items-center border border-brand-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand-green">
-                    <MapPin className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
-                    <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
-                      placeholder="Mumbai" className="flex-1 py-2.5 px-3 text-sm text-gray-900 bg-white focus:outline-none" />
                   </div>
                 </div>
 

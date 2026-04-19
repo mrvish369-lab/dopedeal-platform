@@ -41,10 +41,11 @@ export default function Login() {
         return setError(err?.message || data?.error || "Failed to generate Telegram link");
       }
 
+      setStep("otp");
+
       const botUsername = "dopedealbot";
       const telegramUrl = `https://t.me/${botUsername}?start=${data.token}`;
-      window.open(telegramUrl, '_blank');
-      setStep("otp");
+      window.location.href = telegramUrl;
     }
   };
 
@@ -144,12 +145,12 @@ export default function Login() {
               <p className="text-sm text-brand-text-dim mb-1">
                 {useEmail 
                   ? <>OTP sent to <span className="font-semibold">{email}</span></>
-                  : "OTP sent to your Telegram"}
+                  : "Opening Telegram... Get your OTP and come back here"}
               </p>
               <p className="text-xs text-brand-text-faint mb-6">
                 {useEmail 
                   ? "Check your inbox (and spam folder). Valid for 10 minutes."
-                  : "Check your Telegram messages. Valid for 10 minutes."}
+                  : "After getting OTP from Telegram, return to this page and enter it below. Valid for 10 minutes."}
               </p>
 
               <div className="space-y-4">
