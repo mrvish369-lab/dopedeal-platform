@@ -126,21 +126,35 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
           if (failSafeTimeoutRef.current) clearTimeout(failSafeTimeoutRef.current);
 
           // Background refresh (non-blocking) to keep things accurate long-term.
-          // This does NOT flip UI back to loading.
+          // This does NOT flip UI back to loading and handles failures gracefully.
           void (async () => {
             try {
               const { isAdmin: adminStatus, error: adminErr } = await checkIsAdminRpc();
-              if (adminErr) return;
-              writeAdminAccessCache({
-                userId: nextUser.id,
-                email: nextUser.email,
-                isAdmin: adminStatus,
-                checkedAt: Date.now(),
-              });
-              setIsAdmin(adminStatus);
-              lastVerifiedUserIdRef.current = nextUser.id;
-            } catch {
-              // ignore background failures
+              
+              // On error, keep existing cache - don't disrupt user experience
+              if (adminErr) {
+                console.warn("Background admin verification failed:", adminErr);
+                return;
+              }
+              
+              // Only update if status changed or cache is getting stale
+              if (adminStatus !== cache!.isAdmin || Date.now() - cache!.checkedAt > 60000) {
+                writeAdminAccessCache({
+                  userId: nextUser.id,
+                  email: nextUser.email,
+                  isAdmin: adminStatus,
+                  checkedAt: Date.now(),
+                });
+                
+                // Update state only if status changed
+                if (adminStatus !== cache!.isAdmin) {
+                  setIsAdmin(adminStatus);
+                  lastVerifiedUserIdRef.current = nextUser.id;
+                }
+              }
+            } catch (err) {
+              // Silently ignore background failures - user experience remains stable
+              console.warn("Background admin check exception:", err);
             }
           })();
 

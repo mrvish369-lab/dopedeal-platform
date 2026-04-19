@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // ── New v2 pages ────────────────────────────────────────────────────────────
 import Landing from "./pages/Landing";
@@ -76,9 +77,11 @@ const queryClient = new QueryClient({
 
 // Provides admin auth context to all nested /admin routes
 const AdminRouteRoot = () => (
-  <AdminAuthProvider>
-    <Outlet />
-  </AdminAuthProvider>
+  <ErrorBoundary>
+    <AdminAuthProvider>
+      <Outlet />
+    </AdminAuthProvider>
+  </ErrorBoundary>
 );
 
 const App = () => (
@@ -88,73 +91,75 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* ── Primary v2 Routes ─────────────────────────────────── */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/join/:referralCode" element={<Join />} />
-            <Route path="/auth/register" element={<AuthRegister />} />
-            <Route path="/auth/login" element={<AuthLogin />} />
+          <ErrorBoundary>
+            <Routes>
+              {/* ── Primary v2 Routes ─────────────────────────────────── */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/join/:referralCode" element={<Join />} />
+              <Route path="/auth/register" element={<AuthRegister />} />
+              <Route path="/auth/login" element={<AuthLogin />} />
 
-            {/* Dashboard (protected shell + nested sub-pages) */}
-            <Route path="/dashboard" element={<Dashboard />}>
-              <Route path="pocket-money" element={<PocketMoney />} />
-              <Route path="deal-sell" element={<DealSell />} />
-              <Route path="wallet" element={<DashWallet />} />
-              <Route path="referral" element={<DashReferral />} />
-              <Route path="profile" element={<DashProfile />} />
-              <Route path="leaderboard" element={<DashLeaderboard />} />
+              {/* Dashboard (protected shell + nested sub-pages) */}
+              <Route path="/dashboard" element={<Dashboard />}>
+                <Route path="pocket-money" element={<PocketMoney />} />
+                <Route path="deal-sell" element={<DealSell />} />
+                <Route path="wallet" element={<DashWallet />} />
+                <Route path="referral" element={<DashReferral />} />
+                <Route path="profile" element={<DashProfile />} />
+                <Route path="leaderboard" element={<DashLeaderboard />} />
+              </Route>
+
+              {/* ── Legacy / secondary routes ─────────────────────────── */}
+              <Route path="/deals" element={<LighterOffers />} />
+              <Route path="/start" element={<Start />} />
+              <Route path="/start/:campaignSlug" element={<Start />} />
+              <Route path="/offers" element={<Offers />} />
+              <Route path="/super-deals" element={<SuperDeals />} />
+              <Route path="/super-deals/:dealId" element={<SuperDealDetail />} />
+              <Route path="/category/:category" element={<CategoryDeals />} />
+              <Route path="/offer/:cardId" element={<OfferCardDetail />} />
+              <Route path="/banner/:bannerId" element={<BannerLanding />} />
+              <Route path="/legal/:slug" element={<Legal />} />
+              <Route path="/support" element={<Support />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminRouteRoot />}>
+              <Route path="login" element={<AdminLogin />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="coin-settings" element={<CoinSettings />} />
+              <Route path="leads" element={<Leads />} />
+              <Route path="products" element={<Products />} />
+              <Route path="verification-queue" element={<VerificationQueue />} />
+              <Route path="dealsell-products" element={<DealSellProducts />} />
+              <Route path="task-queue" element={<TaskQueue />} />
+              <Route path="shops" element={<AdminShops />} />
+              <Route path="shops/:shopId" element={<ShopDetail />} />
+              <Route path="qr-codes" element={<AdminQRCodes />} />
+              <Route path="quizzes" element={<AdminQuizzes />} />
+              <Route path="offer-builder" element={<OfferBuilder />} />
+              <Route path="offer-cards" element={<OfferCards />} />
+              <Route path="banners" element={<Banners />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="affiliates" element={<Affiliates />} />
+              <Route path="fraud-alerts" element={<FraudAlerts />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="brands" element={<Brands />} />
+              <Route path="regions" element={<Regions />} />
+              <Route path="compliance" element={<Compliance />} />
+              <Route path="system-health" element={<SystemHealth />} />
+              <Route path="geo-intelligence" element={<GeoIntelligence />} />
+              <Route path="recommendation-settings" element={<RecommendationSettings />} />
+              <Route path="super-deals" element={<SuperDealsAdmin />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="logs" element={<AdminLogs />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* ── Legacy / secondary routes ─────────────────────────── */}
-            <Route path="/deals" element={<LighterOffers />} />
-            <Route path="/start" element={<Start />} />
-            <Route path="/start/:campaignSlug" element={<Start />} />
-            <Route path="/offers" element={<Offers />} />
-            <Route path="/super-deals" element={<SuperDeals />} />
-            <Route path="/super-deals/:dealId" element={<SuperDealDetail />} />
-            <Route path="/category/:category" element={<CategoryDeals />} />
-            <Route path="/offer/:cardId" element={<OfferCardDetail />} />
-            <Route path="/banner/:bannerId" element={<BannerLanding />} />
-            <Route path="/legal/:slug" element={<Legal />} />
-            <Route path="/support" element={<Support />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminRouteRoot />}>
-            <Route path="login" element={<AdminLogin />} />
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="coin-settings" element={<CoinSettings />} />
-            <Route path="leads" element={<Leads />} />
-            <Route path="products" element={<Products />} />
-            <Route path="verification-queue" element={<VerificationQueue />} />
-            <Route path="dealsell-products" element={<DealSellProducts />} />
-            <Route path="task-queue" element={<TaskQueue />} />
-            <Route path="shops" element={<AdminShops />} />
-            <Route path="shops/:shopId" element={<ShopDetail />} />
-            <Route path="qr-codes" element={<AdminQRCodes />} />
-            <Route path="quizzes" element={<AdminQuizzes />} />
-            <Route path="offer-builder" element={<OfferBuilder />} />
-            <Route path="offer-cards" element={<OfferCards />} />
-            <Route path="banners" element={<Banners />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="affiliates" element={<Affiliates />} />
-            <Route path="fraud-alerts" element={<FraudAlerts />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="brands" element={<Brands />} />
-            <Route path="regions" element={<Regions />} />
-            <Route path="compliance" element={<Compliance />} />
-            <Route path="system-health" element={<SystemHealth />} />
-            <Route path="geo-intelligence" element={<GeoIntelligence />} />
-            <Route path="recommendation-settings" element={<RecommendationSettings />} />
-            <Route path="super-deals" element={<SuperDealsAdmin />} />
-            <Route path="settings" element={<AdminSettings />} />
-            <Route path="logs" element={<AdminLogs />} />
+            {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
-          </Route>
-
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </AuthProvider>

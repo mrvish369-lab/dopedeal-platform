@@ -14,10 +14,12 @@ export type AdminAccessCache = {
   isAdmin: boolean;
   email?: string;
   checkedAt: number; // epoch ms
+  version: number; // cache schema version for migration support
 };
 
-const ADMIN_CACHE_KEY = "dd_admin_access_cache_v1";
+const ADMIN_CACHE_KEY = "dd_admin_access_cache_v2"; // Incremented for versioning
 const DEVICE_ID_KEY = "dd_device_id_v1";
+const CURRENT_CACHE_VERSION = 2;
 
 // How long we trust cached admin access before requiring a fresh RPC.
 // Kept short (5 min) so a revoked admin loses access quickly.
@@ -54,16 +56,29 @@ export function readAdminAccessCache(): AdminAccessCache | null {
     if (typeof parsed.isAdmin !== "boolean") return null;
     if (typeof parsed.checkedAt !== "number") return null;
 
+    // Version check - invalidate cache if version mismatch
+    if (!parsed.version || parsed.version !== CURRENT_CACHE_VERSION) {
+      clearAdminAccessCache();
+      return null;
+    }
+
     return parsed;
   } catch {
     return null;
   }
 }
 
-/** Write the admin cache to sessionStorage. */
-export function writeAdminAccessCache(cache: AdminAccessCache): void {
+/** Write the admin cache to sessionStorage (atomic operation). */
+export function writeAdminAccessCache(cache: Omit<AdminAccessCache, 'version'>): void {
   try {
-    sessionStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(cache));
+    // Add version to cache data
+    const versionedCache: AdminAccessCache = {
+      ...cache,
+      version: CURRENT_CACHE_VERSION,
+    };
+    
+    // Atomic write - sessionStorage.setItem is synchronous and atomic
+    sessionStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(versionedCache));
   } catch {
     // ignore — cache is optional
   }
