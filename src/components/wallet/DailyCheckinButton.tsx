@@ -17,7 +17,7 @@ export const DailyCheckinButton = () => {
 
   // Countdown timer for next check-in
   useEffect(() => {
-    if (!checkinStatus.canCheckin && checkinStatus.nextCheckinAt) {
+    if (checkinStatus && !checkinStatus.canCheckin && checkinStatus.nextCheckinAt) {
       const updateTimer = () => {
         const now = new Date();
         const diff = checkinStatus.nextCheckinAt!.getTime() - now.getTime();
@@ -47,7 +47,7 @@ export const DailyCheckinButton = () => {
       return;
     }
 
-    if (!checkinStatus.canCheckin) {
+    if (!checkinStatus || !checkinStatus.canCheckin) {
       toast.info("You've already checked in today! Come back tomorrow.");
       return;
     }
@@ -68,6 +68,8 @@ export const DailyCheckinButton = () => {
 
   const handleAnimationComplete = () => {
     setShowCoinAnimation(false);
+    
+    if (!checkinStatus) return;
     
     // Check for streak milestone bonuses
     const streakMilestones = [
@@ -119,6 +121,7 @@ export const DailyCheckinButton = () => {
   };
 
   const getStreakEmoji = () => {
+    if (!checkinStatus) return "🌟";
     if (checkinStatus.streak >= 30) return "🎁";
     if (checkinStatus.streak >= 14) return "🔥";
     if (checkinStatus.streak >= 7) return "🏆";
@@ -126,6 +129,11 @@ export const DailyCheckinButton = () => {
     if (checkinStatus.streak >= 3) return "✨";
     return "🌟";
   };
+
+  // Don't render if checkinStatus is not loaded yet
+  if (!checkinStatus) {
+    return null;
+  }
 
   return (
     <>

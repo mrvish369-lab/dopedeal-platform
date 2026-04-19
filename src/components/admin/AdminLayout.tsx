@@ -117,7 +117,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   // Show loading state while auth is being checked (with timeout hint)
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-green/5 via-background to-brand-teal/5 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-brand-text font-medium">Verifying admin access...</p>
@@ -130,7 +130,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   // Show error state with retry option
   if (authError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-green/5 via-background to-brand-teal/5 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">⚠️</span>
@@ -157,7 +157,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   // don't show "Access Denied" (null does not mean false).
   if (isAdmin === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-green/5 via-background to-brand-teal/5 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-brand-forest mb-2">Verifying admin access…</h1>
@@ -177,7 +177,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
 
   if (isAdmin === false) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-green/5 via-background to-brand-teal/5 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-brand-forest mb-4">Access Denied</h1>
           <p className="text-brand-text-dim mb-6">You don't have admin privileges</p>
@@ -195,7 +195,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-green/5 via-background to-brand-teal/5 flex">
+    <div className="min-h-screen bg-brand-bg flex">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-brand-border px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
@@ -303,7 +303,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-brand-border bg-brand-green/5">
+        <div className="p-4 border-t border-brand-border bg-brand-surface">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-green to-brand-teal flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-sm">
