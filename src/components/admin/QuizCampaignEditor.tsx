@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Gift, Image, MessageSquare, Settings, X, Plus, Eye, Package } from "lucide-react";
 import { CampaignImageUpload } from "./CampaignImageUpload";
 import { CampaignPreview } from "./CampaignPreview";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 interface Product {
   id: string;
@@ -155,6 +156,7 @@ export const QuizCampaignEditor = ({
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const { toast } = useToast();
+  const { verifySensitiveAction } = useAdminAuth();
 
   const isEditing = !!campaign?.id;
 
@@ -238,6 +240,18 @@ export const QuizCampaignEditor = ({
     setIsSubmitting(true);
 
     try {
+      // Verify admin status before performing sensitive action
+      const isVerified = await verifySensitiveAction();
+      if (!isVerified) {
+        toast({
+          title: "Authorization Required",
+          description: "Admin verification failed. Please sign in again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         redemption_steps: formData.redemption_steps.filter((s) => s.trim()),

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Loader2, Upload, Coins, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 interface SuperDeal {
   id: string;
@@ -51,6 +52,7 @@ const SuperDealsAdmin = () => {
   const [selectedDeal, setSelectedDeal] = useState<SuperDeal | null>(null);
   const [coupons, setCoupons] = useState<CouponCode[]>([]);
   const [bulkCoupons, setBulkCoupons] = useState("");
+  const { verifySensitiveAction } = useAdminAuth();
   
   const [form, setForm] = useState({
     title: "",
@@ -157,6 +159,14 @@ const SuperDealsAdmin = () => {
 
     setSaving(true);
 
+    // Verify admin status before performing sensitive action
+    const isVerified = await verifySensitiveAction();
+    if (!isVerified) {
+      toast.error("Admin verification failed. Please sign in again.");
+      setSaving(false);
+      return;
+    }
+
     const dealData = {
       title: form.title,
       subtitle: form.subtitle || null,
@@ -205,6 +215,13 @@ const SuperDealsAdmin = () => {
 
   const deleteDeal = async (id: string) => {
     if (!confirm("Delete this deal and all its coupons?")) return;
+
+    // Verify admin status before performing sensitive action
+    const isVerified = await verifySensitiveAction();
+    if (!isVerified) {
+      toast.error("Admin verification failed. Please sign in again.");
+      return;
+    }
 
     const { error } = await supabase.from("super_deals").delete().eq("id", id);
 

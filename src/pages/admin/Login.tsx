@@ -13,11 +13,45 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const validatePasswordComplexity = (password: string): { isValid: boolean; error?: string } => {
+    const hasMinLength = password.length >= 12;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!hasMinLength) {
+      return { isValid: false, error: "Password must be at least 12 characters long." };
+    }
+    if (!hasUppercase) {
+      return { isValid: false, error: "Password must contain at least one uppercase letter." };
+    }
+    if (!hasDigit) {
+      return { isValid: false, error: "Password must contain at least one digit." };
+    }
+    if (!hasSpecial) {
+      return { isValid: false, error: "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)." };
+    }
+
+    return { isValid: true };
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Validate password complexity before attempting sign-in
+      const validation = validatePasswordComplexity(password);
+      if (!validation.isValid) {
+        toast({
+          title: "Password Complexity Error",
+          description: validation.error,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {

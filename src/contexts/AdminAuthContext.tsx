@@ -29,6 +29,7 @@ interface AdminAuthContextType {
   authError: string | null;
   signOut: () => Promise<void>;
   refetchAuth: () => Promise<void>;
+  verifySensitiveAction: () => Promise<boolean>;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
@@ -251,8 +252,49 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
     await checkAuth({ force: true, reason: "manual", showLoading: true });
   }, [checkAuth]);
 
+  /**
+   * Verify admin status for sensitive actions.
+   * Always performs a fresh RPC check regardless of cache state.
+   * Use this before any state-mutating admin operation.
+   * 
+   * @returns Promise<boolean> - true if user is admin, false otherwise
+   */
+  const verifySensitiveAction = useCallback(async (): Promise<boolean> => {
+    try {
+      // Always check session first
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        return false;
+      }
+
+      // Always perform fresh RPC check - never trust cache for sensitive actions
+      const { isAdmin: adminStatus, error: adminErr } = await checkIsAdminRpc();
+
+      if (adminErr || !adminStatus) {
+        return false;
+      }
+
+      // Update cache with fresh verification result
+      writeAdminAccessCache({
+        userId: session.user.id,
+        email: session.user.email || "",
+        isAdmin: adminStatus,
+        checkedAt: Date.now(),
+      });
+
+      return adminStatus;
+    } catch (error) {
+      console.error("Sensitive action verification error:", error);
+      return false;
+    }
+  }, [checkIsAdminRpc]);
+
   return (
-    <AdminAuthContext.Provider value={{ isAdmin, isLoading, user, authError, signOut, refetchAuth }}>
+    <AdminAuthContext.Provider value={{ isAdmin, isLoading, user, authError, signOut, refetchAuth, verifySensitiveAction }}>
       {children}
     </AdminAuthContext.Provider>
   );
@@ -268,6 +310,7 @@ export const useAdminAuth = () => {
       authError: null,
       signOut: async () => {},
       refetchAuth: async () => {},
+      verifySensitiveAction: async () => false,
     };
   }
   return context;

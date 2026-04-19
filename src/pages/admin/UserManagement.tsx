@@ -37,6 +37,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 interface UserWithWallet {
   user_id: string;
@@ -68,6 +69,7 @@ const UserManagement = () => {
   const [showTransactionsDialog, setShowTransactionsDialog] = useState(false);
   
   const queryClient = useQueryClient();
+  const { verifySensitiveAction } = useAdminAuth();
 
   // Fetch users with wallets
   const { data: users, isLoading } = useQuery({
@@ -131,6 +133,12 @@ const UserManagement = () => {
   // Adjust coins mutation
   const adjustCoinsMutation = useMutation({
     mutationFn: async ({ userId, amount, description }: { userId: string; amount: number; description: string }) => {
+      // Verify admin status before performing sensitive action
+      const isVerified = await verifySensitiveAction();
+      if (!isVerified) {
+        throw new Error("Admin verification failed. Please sign in again.");
+      }
+
       const { data, error } = await supabase.rpc("admin_adjust_coins", {
         p_user_id: userId,
         p_amount: amount,
