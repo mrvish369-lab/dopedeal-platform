@@ -15,8 +15,8 @@ interface AuthContextType {
   loading: boolean;
   wallet: WalletBalances | null;
   isVerified: boolean;
-  // Email OTP auth (free — no SMS provider needed)
-  sendOtp: (email: string) => Promise<{ error: string | null }>;
+  // Email OTP auth (free — no SMS provider needed) + Telegram support
+  sendOtp: (email: string, options?: { telegram_chat_id?: string }) => Promise<{ error: string | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshWallet: () => Promise<void>;
@@ -136,10 +136,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * Send email OTP via Edge Function → Resend API.
+   * Send email OTP via Edge Function → Resend API or Telegram.
    * Enforces a 60-second client-side cooldown per email address.
    */
-  const sendOtp = async (email: string): Promise<{ error: string | null }> => {
+  const sendOtp = async (
+    email: string,
+    options?: { telegram_chat_id?: string }
+  ): Promise<{ error: string | null }> => {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Client-side rate limit check
@@ -151,7 +154,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const { data, error } = await supabase.functions.invoke("send-otp", {
-      body: { email: normalizedEmail },
+      body: { 
+        email: normalizedEmail,
+        telegram_chat_id: options?.telegram_chat_id,
+      },
     });
 
     if (error) {
