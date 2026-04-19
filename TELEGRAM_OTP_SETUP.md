@@ -1,167 +1,177 @@
-# 🚀 Telegram OTP Integration Guide
+# Telegram OTP Setup Guide
 
-## ✅ What's Done
+DopeDeal supports OTP delivery via Telegram as an alternative to email. This guide explains how to set up and use Telegram OTP.
 
-### 1. Backend (Edge Function)
-- ✅ `send-otp` function updated with Telegram support
-- ✅ Email fixed: Using `onboarding@resend.dev` (no bounce)
-- ✅ Dual delivery: Email + Telegram (at least one must succeed)
+## For Users: How to Get Your Telegram Chat ID
 
-### 2. Frontend (AuthContext)
-- ✅ `sendOtp()` function updated to accept `telegram_chat_id`
-- ✅ Type definitions updated
+1. **Open Telegram** on your phone or desktop
+2. **Search for @userinfobot** in the Telegram search bar
+3. **Start a chat** with @userinfobot by clicking "Start"
+4. The bot will automatically send you a message containing your **Chat ID**
+5. **Copy your Chat ID** (it will be a number like `123456789`)
+6. Use this Chat ID when signing up or logging in to DopeDeal
 
----
+## For Developers: Backend Setup
 
-## 📋 Remaining Steps
+### 1. Create a Telegram Bot
 
-### Step 1: Deploy Edge Function
-1. Supabase Dashboard → Edge Functions → send-otp
-2. Copy code from `supabase/functions/send-otp/index.ts`
-3. Deploy
+1. Open Telegram and search for **@BotFather**
+2. Start a chat and send `/newbot`
+3. Follow the prompts to:
+   - Choose a name for your bot (e.g., "DopeDeal OTP Bot")
+   - Choose a username (must end in "bot", e.g., "dopedeal_otp_bot")
+4. **Copy the Bot Token** provided by BotFather (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
 
-### Step 2: Add Telegram Bot Token
-1. Create Telegram Bot:
-   - Open Telegram → Search "@BotFather"
-   - Send: `/newbot`
-   - Follow instructions
-   - Copy token (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+### 2. Configure Supabase Edge Function
 
-2. Add to Supabase:
-   - Dashboard → Settings → Edge Functions → Environment Variables
-   - Add: `TELEGRAM_BOT_TOKEN` = `your_bot_token_here`
-   - Save
+1. Go to your **Supabase Dashboard**
+2. Navigate to **Edge Functions** → **Secrets**
+3. Add the following secret:
+   - **Name**: `TELEGRAM_BOT_TOKEN`
+   - **Value**: Your bot token from BotFather
 
-### Step 3: Update Login/Register UI (Optional)
+### 3. Deploy the Edge Function
 
-Add Telegram option in `src/pages/auth/Login.tsx` and `src/pages/auth/Register.tsx`:
+Deploy the updated `send-otp` Edge Function:
 
-```tsx
-// Add state for Telegram
-const [useTelegram, setUseTelegram] = useState(false);
-const [telegramChatId, setTelegramChatId] = useState("");
+```bash
+supabase functions deploy send-otp
+```
 
-// Update handleSendOtp
-const handleSendOtp = async () => {
-  setError(null);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-    return setError("Enter a valid email address");
-  
-  if (useTelegram && !telegramChatId.trim()) {
-    return setError("Enter your Telegram Chat ID");
+### 4. Test the Integration
+
+Test with a sample request:
+
+```bash
+curl -X POST https://your-project.supabase.co/functions/v1/send-otp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -d '{
+    "email": "test@example.com",
+    "telegram_chat_id": "YOUR_CHAT_ID"
+  }'
+```
+
+## How It Works
+
+### Dual Delivery Mode
+
+When a user provides their Telegram Chat ID:
+- OTP is sent to **both Email and Telegram**
+- If either delivery succeeds, the request is considered successful
+- This provides redundancy and better reliability
+
+### Email-Only Mode
+
+When no Telegram Chat ID is provided:
+- OTP is sent to **Email only** (default behavior)
+- Works exactly as before
+
+### Frontend Integration
+
+The Login and Register pages now include:
+- A checkbox to enable Telegram OTP delivery
+- An input field for Telegram Chat ID (shown when checkbox is enabled)
+- A link to @userinfobot for users to get their Chat ID
+- Dynamic button text showing the selected delivery method
+
+## Security Considerations
+
+### Chat ID Privacy
+- Chat IDs are **not stored** in the database
+- They are only used for the current OTP delivery
+- Users must provide their Chat ID each time they want Telegram delivery
+
+### Bot Token Security
+- Bot token is stored as a **Supabase secret** (encrypted)
+- Never expose the bot token in client-side code
+- Only the Edge Function has access to the token
+
+### Rate Limiting
+- The same rate limiting rules apply to Telegram OTP as email OTP
+- 3 OTP requests per email per 10-minute window (enforced server-side)
+- Client-side cooldown of 60 seconds between requests
+
+## Troubleshooting
+
+### "Failed to deliver OTP via any channel"
+- Check that `TELEGRAM_BOT_TOKEN` is set in Supabase secrets
+- Verify the bot token is valid (test with BotFather)
+- Check Edge Function logs for detailed error messages
+
+### "Telegram message not received"
+- Verify the Chat ID is correct (use @userinfobot to confirm)
+- Make sure the user has **started a chat** with your bot first
+- Check that the bot is not blocked by the user
+
+### "Email not received"
+- Verify `RESEND_API_KEY` is set in Supabase secrets
+- Check `FROM_EMAIL` is set to `onboarding@resend.dev`
+- Check Resend dashboard for delivery logs
+- Ask user to check spam folder
+
+## API Reference
+
+### Send OTP Request
+
+**Endpoint**: `POST /functions/v1/send-otp`
+
+**Request Body**:
+```json
+{
+  "email": "user@example.com",
+  "telegram_chat_id": "123456789"  // Optional
+}
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "message": "OTP sent via Email and Telegram",
+  "delivery": {
+    "email": true,
+    "telegram": true
   }
-  
-  setLoading(true);
-  const { error: err } = await sendOtp(
-    email.trim().toLowerCase(),
-    useTelegram ? { telegram_chat_id: telegramChatId } : undefined
-  );
-  setLoading(false);
-  if (err) return setError(err);
-  setStep("otp");
-};
-
-// Add UI toggle
-<div className="flex items-center gap-2 mb-4">
-  <input
-    type="checkbox"
-    checked={useTelegram}
-    onChange={(e) => setUseTelegram(e.target.checked)}
-    className="w-4 h-4"
-  />
-  <label className="text-sm text-gray-700">
-    Send OTP via Telegram instead
-  </label>
-</div>
-
-{useTelegram && (
-  <input
-    type="text"
-    value={telegramChatId}
-    onChange={(e) => setTelegramChatId(e.target.value)}
-    placeholder="Your Telegram Chat ID"
-    className="w-full py-2.5 px-3 text-sm border rounded-xl mb-4"
-  />
-)}
+}
 ```
 
----
-
-## 🔍 How Users Get Telegram Chat ID
-
-### Option 1: Via Your Bot
-1. User opens your Telegram bot
-2. Sends `/start`
-3. Bot replies with their Chat ID
-
-### Option 2: Via @userinfobot
-1. User searches "@userinfobot" in Telegram
-2. Sends `/start`
-3. Bot shows their Chat ID
-
----
-
-## 📊 Current Status
-
-### Working Now (Email Only):
-```javascript
-// Frontend call
-await sendOtp("user@example.com");
-
-// Backend sends via: onboarding@resend.dev
-// Result: ✅ Email delivered to inbox
+**Response (Partial Success)**:
+```json
+{
+  "success": true,
+  "message": "OTP sent via Email",
+  "delivery": {
+    "email": true,
+    "telegram": false
+  }
+}
 ```
 
-### After Telegram Setup:
-```javascript
-// Email only
-await sendOtp("user@example.com");
-
-// Telegram only
-await sendOtp("user@example.com", { telegram_chat_id: "123456789" });
-
-// Both (fallback)
-await sendOtp("user@example.com", { telegram_chat_id: "123456789" });
+**Response (Failure)**:
+```json
+{
+  "error": "Failed to deliver OTP via any channel. Please try again."
+}
 ```
 
----
+## Environment Variables
 
-## 🎯 Quick Test
+### Required for Email OTP
+- `RESEND_API_KEY` - Resend API key for email delivery
+- `FROM_EMAIL` - Sender email address (use `onboarding@resend.dev`)
 
-### Test Email (No changes needed):
-1. Go to login page
-2. Enter email
-3. Click "Send OTP"
-4. Check inbox (email from `onboarding@resend.dev`)
+### Required for Telegram OTP
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token from BotFather
 
-### Test Telegram (After setup):
-1. Create bot via @BotFather
-2. Add `TELEGRAM_BOT_TOKEN` to Supabase
-3. Get your Chat ID from @userinfobot
-4. Update Login.tsx with Telegram UI
-5. Test with your Chat ID
+### Required for Database Storage
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for database access
 
----
+## Support
 
-## 🚨 Important Notes
-
-1. **Email is now fixed**: Using `onboarding@resend.dev` (100% delivery)
-2. **Telegram is optional**: Works without it, email will be used
-3. **Dual delivery**: If both email and Telegram fail, user gets error
-4. **Rate limiting**: Still enforced (3 requests per 10 minutes)
-
----
-
-## 📝 Summary
-
-**What works NOW:**
-- ✅ Email OTP (fixed, using Resend verified domain)
-- ✅ Backend supports Telegram (code ready)
-- ✅ Frontend can pass `telegram_chat_id`
-
-**What needs setup:**
-- ⏳ Deploy updated Edge Function
-- ⏳ Add Telegram Bot Token to Supabase
-- ⏳ (Optional) Add Telegram UI toggle in Login/Register pages
-
-**Estimated time:** 10 minutes for full setup
+For issues or questions:
+- Check Supabase Edge Function logs for detailed error messages
+- Verify all environment variables are set correctly
+- Test email delivery separately from Telegram delivery
+- Contact support@dopedeal.store for assistance

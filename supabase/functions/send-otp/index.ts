@@ -1,6 +1,6 @@
 /**
- * send-otp — OTP delivery via Email + Telegram
- * Supports dual delivery: Email (Resend) + Telegram Bot
+ * send-otp — OTP delivery via Email and/or Telegram
+ * Supports dual delivery for better reliability
  */
 
 const corsHeaders = {
@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const email = body?.email;
-    const telegramChatId = body?.telegram_chat_id; // Optional: Telegram Chat ID
+    const telegramChatId = body?.telegram_chat_id;
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email required" }), {
@@ -29,11 +29,12 @@ Deno.serve(async (req) => {
 
     // Get env vars
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev"; // Fixed: Use Resend verified domain
-    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN"); // Add this to Supabase env vars
+    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev";
+    const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
     if (!RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY not set" }), {
+      console.error("RESEND_API_KEY not configured");
+      return new Response(JSON.stringify({ error: "Service configuration error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -41,13 +42,14 @@ Deno.serve(async (req) => {
 
     // Generate OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
+    console.log("Generated OTP for:", normalizedEmail);
 
-    // Track delivery status
-    let emailSent = false;
-    let telegramSent = false;
-    const errors = [];
+    const deliveryResults = {
+      email: false,
+      telegram: false,
+    };
 
-    // ── 1. Send via Email (Resend) ──────────────────────────────────────────
+    // ── Send Email via Resend ────────────────────────────────────────────────
     try {
       const resendResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: "DopeDeal <" + FROM_EMAIL + ">",
           to: [normalizedEmail],
-          reply_to: FROM_EMAIL,
+          reply_to: "support@dopedeal.store",
           subject: "Your DopeDeal Login Code: " + otp,
           html: "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body style='margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f5f5f5'><table width='100%' cellpadding='0' cellspacing='0' style='background-color:#f5f5f5;padding:20px'><tr><td align='center'><table width='600' cellpadding='0' cellspacing='0' style='background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)'><tr><td style='background-color:#f97316;padding:30px;text-align:center'><h1 style='margin:0;color:#ffffff;font-size:28px'>🔥 DopeDeal</h1></td></tr><tr><td style='padding:40px 30px'><h2 style='margin:0 0 20px 0;color:#333333;font-size:24px'>Your Login Code</h2><p style='margin:0 0 30px 0;color:#666666;font-size:16px;line-height:1.5'>Use this one-time code to complete your sign-in:</p><div style='background-color:#f8f8f8;border:2px solid #f97316;border-radius:8px;padding:20px;text-align:center;margin:0 0 30px 0'><span style='font-size:36px;font-weight:bold;letter-spacing:8px;color:#333333;font-family:monospace'>" + otp + "</span></div><p style='margin:0 0 10px 0;color:#999999;font-size:14px'>This code expires in 10 minutes.</p><p style='margin:0;color:#999999;font-size:14px'>If you didn't request this code, please ignore this email.</p></td></tr><tr><td style='background-color:#f8f8f8;padding:20px 30px;text-align:center;border-top:1px solid #eeeeee'><p style='margin:0;color:#999999;font-size:12px'>© 2026 DopeDeal. All rights reserved.</p></td></tr></table></td></tr></table></body></html>",
           text: "DopeDeal Login Code\n\nYour one-time code: " + otp + "\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, please ignore this email.\n\n© 2026 DopeDeal",
@@ -66,56 +68,48 @@ Deno.serve(async (req) => {
       });
 
       if (resendResponse.ok) {
-        emailSent = true;
+        deliveryResults.email = true;
+        console.log("Email sent successfully via Resend");
       } else {
         const errText = await resendResponse.text();
-        errors.push("Email failed: " + errText);
+        console.error("Resend API error:", resendResponse.status, errText);
       }
     } catch (emailErr) {
-      errors.push("Email error: " + String(emailErr));
+      console.error("Email delivery error:", emailErr);
     }
 
-    // ── 2. Send via Telegram (if chat_id provided) ──────────────────────────
+    // ── Send Telegram Message (if chat_id provided) ──────────────────────────
     if (telegramChatId && TELEGRAM_BOT_TOKEN) {
       try {
-        const telegramMessage = 
-          "🔥 *DopeDeal Login Code*\n\n" +
-          "Your one-time code:\n" +
-          "`" + otp + "`\n\n" +
-          "⏱ Expires in 10 minutes\n" +
-          "🔒 Keep this code secure";
-
         const telegramResponse = await fetch(
-          "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage",
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               chat_id: telegramChatId,
-              text: telegramMessage,
+              text: `🔥 *DopeDeal Login Code*\n\nYour one-time code: \`${otp}\`\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, please ignore this message.`,
               parse_mode: "Markdown",
             }),
           }
         );
 
         if (telegramResponse.ok) {
-          telegramSent = true;
+          deliveryResults.telegram = true;
+          console.log("Telegram message sent successfully");
         } else {
           const errText = await telegramResponse.text();
-          errors.push("Telegram failed: " + errText);
+          console.error("Telegram API error:", telegramResponse.status, errText);
         }
       } catch (telegramErr) {
-        errors.push("Telegram error: " + String(telegramErr));
+        console.error("Telegram delivery error:", telegramErr);
       }
     }
 
-    // ── 3. Check if at least one delivery succeeded ─────────────────────────
-    if (!emailSent && !telegramSent) {
+    // Check if at least one delivery method succeeded
+    if (!deliveryResults.email && !deliveryResults.telegram) {
       return new Response(
-        JSON.stringify({ 
-          error: "Failed to deliver OTP via any channel", 
-          details: errors 
-        }), 
+        JSON.stringify({ error: "Failed to deliver OTP via any channel. Please try again." }), 
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -123,7 +117,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 4. Store OTP in DB ──────────────────────────────────────────────────
+    // Store OTP in DB
     try {
       const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -159,21 +153,23 @@ Deno.serve(async (req) => {
             used: false,
           }),
         });
+        console.log("OTP stored in database");
       }
     } catch (dbErr) {
       console.error("DB storage error (non-fatal):", dbErr);
     }
 
-    // ── 5. Return success response ──────────────────────────────────────────
+    const deliveryMessage = deliveryResults.email && deliveryResults.telegram
+      ? "OTP sent via Email and Telegram"
+      : deliveryResults.email
+      ? "OTP sent via Email"
+      : "OTP sent via Telegram";
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "OTP sent successfully",
-        delivery: {
-          email: emailSent,
-          telegram: telegramSent,
-        },
-        errors: errors.length > 0 ? errors : undefined,
+        message: deliveryMessage,
+        delivery: deliveryResults,
       }), 
       {
         status: 200,
@@ -183,9 +179,12 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("send-otp error:", err);
-    return new Response(JSON.stringify({ error: "Unexpected error: " + String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "An error occurred. Please try again." }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
