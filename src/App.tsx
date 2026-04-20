@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // ── New v2 pages ────────────────────────────────────────────────────────────
 import Landing from "./pages/Landing";
@@ -100,7 +101,7 @@ const App = () => (
               <Route path="/auth/login" element={<AuthLogin />} />
 
               {/* Dashboard (protected shell + nested sub-pages) */}
-              <Route path="/dashboard" element={<Dashboard />}>
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
                 <Route path="pocket-money" element={<PocketMoney />} />
                 <Route path="deal-sell" element={<DealSell />} />
                 <Route path="wallet" element={<DashWallet />} />

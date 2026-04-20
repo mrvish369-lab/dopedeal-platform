@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, ArrowLeft, Mail, Shield, CheckCircle, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,7 @@ type Step = "email" | "otp";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { sendOtp, verifyOtp } = useAuth();
 
   const [step, setStep] = useState<Step>("email");
@@ -17,6 +18,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useEmail, setUseEmail] = useState(false);
+
+  // Get the page user was trying to access before being redirected to login
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
 
   const handleSendOtp = async () => {
     setError(null);
@@ -56,7 +60,9 @@ export default function Login() {
     const { error: err } = await verifyOtp(email.trim().toLowerCase(), otp);
     setLoading(false);
     if (err) return setError(err);
-    navigate("/dashboard");
+    
+    console.log("Login successful, redirecting to:", from);
+    navigate(from, { replace: true });
   };
 
   return (
