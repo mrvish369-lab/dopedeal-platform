@@ -82,7 +82,7 @@ Complete revamp of `/deals` page with white + green theme, organized income oppo
 ## Pending Stages
 
 ### ✅ Stage 3: Offer Cards Reorganization (COMPLETED)
-**Commit**: [pending]
+**Commit**: 2e524e5
 **Date**: 2026-04-20
 
 **Tasks**:
