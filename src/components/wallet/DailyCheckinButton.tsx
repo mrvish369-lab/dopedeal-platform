@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { CoinAnimation } from "./CoinAnimation";
-import { AuthModal } from "@/components/auth/AuthModal";
 import { Coins, Gift, Clock, Sparkles, Flame, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const DailyCheckinButton = () => {
   const { user, checkinStatus, performDailyCheckin } = useAuth();
+  const navigate = useNavigate();
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
   // Countdown timer for next check-in
@@ -57,7 +57,7 @@ export const DailyCheckinButton = () => {
 
   const handleCheckin = async () => {
     if (!user) {
-      setAuthModalOpen(true);
+      navigate("/auth/login");
       return;
     }
 
@@ -156,8 +156,6 @@ export const DailyCheckinButton = () => {
         coinsEarned={coinsEarned}
         onComplete={handleAnimationComplete}
       />
-
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
 
       <div className="px-4 py-4">
         <div

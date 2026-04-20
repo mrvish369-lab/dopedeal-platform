@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, Coins, Lock, Star, ExternalLink, Check, Copy, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WalletButton } from "@/components/wallet/WalletButton";
-import { AuthModal } from "@/components/auth/AuthModal";
 import { CoinAnimation } from "@/components/wallet/CoinAnimation";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,7 +48,6 @@ const SuperDealDetail = () => {
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockStatus, setUnlockStatus] = useState<UnlockStatus>({ unlocked: false });
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const [copied, setCopied] = useState(false);
   const [dynamicButtonText, setDynamicButtonText] = useState<string | null>(null);
@@ -143,7 +141,7 @@ const SuperDealDetail = () => {
 
   const handleUnlock = async () => {
     if (!user) {
-      setAuthModalOpen(true);
+      navigate("/auth/login");
       return;
     }
 
@@ -226,8 +224,6 @@ const SuperDealDetail = () => {
           toast.success("🎉 Coupon unlocked! Use it before it expires.");
         }}
       />
-
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Coins, User, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { AuthModal } from "@/components/auth/AuthModal";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export const WalletButton = () => {
   const { user, wallet, loading, signOut } = useAuth();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -24,18 +24,15 @@ export const WalletButton = () => {
 
   if (!user) {
     return (
-      <>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setAuthModalOpen(true)}
-          className="gap-2 rounded-full border-primary/30 bg-primary/10 hover:bg-primary/20"
-        >
-          <User className="w-4 h-4" />
-          <span className="hidden sm:inline">Sign In</span>
-        </Button>
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
-      </>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => navigate("/auth/login")}
+        className="gap-2 rounded-full border-primary/30 bg-primary/10 hover:bg-primary/20"
+      >
+        <User className="w-4 h-4" />
+        <span className="hidden sm:inline">Sign In</span>
+      </Button>
     );
   }
 
