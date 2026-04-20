@@ -86,17 +86,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const otpLastSentRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
+    // Initialize session from storage
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        console.log("Initializing auth, checking for existing session...");
+        
+        // Get existing session from storage
+        const { data: { session: existingSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+        }
+        
+        if (mounted) {
+          if (existingSession && !error) {
+            // Verify session is not expired
+            const expiresAt = new Date(existingSession.expires_at! * 1000);
+            const now = new Date();
+            
+            if (expiresAt > now) {
+              console.log("Session restored from storage:", existingSession.user.email);
+              setSession(existingSession);
+              setUser(existingSession.user);
+              // Fetch user data
+              fetchWallet(existingSession.user.id);
+              fetchVerificationStatus(existingSession.user.id);
+              fetchCheckinStatus(existingSession.user.id);
+            } else {
+              console.warn("Session expired, clearing from storage");
+              await supabase.auth.signOut();
+            }
+          } else {
+            console.log("No existing session found");
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error initializing auth:", err);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up listener BEFORE initializing to catch any events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+
+        console.log("Auth state changed:", event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
-          setTimeout(() => {
-            fetchWallet(session.user.id);
-            fetchVerificationStatus(session.user.id);
-            fetchCheckinStatus(session.user.id);
-          }, 0);
+          // User logged in or token refreshed
+          fetchWallet(session.user.id);
+          fetchVerificationStatus(session.user.id);
+          fetchCheckinStatus(session.user.id);
         } else {
+          // User logged out
           setWallet(null);
           setIsVerified(false);
           setCheckinStatus({
@@ -106,22 +157,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             lastCheckinDate: null,
           });
         }
+        
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchWallet(session.user.id);
-        fetchVerificationStatus(session.user.id);
-        fetchCheckinStatus(session.user.id);
-      }
-      setLoading(false);
-    });
+    // Initialize after listener is set up
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchWallet = async (userId: string) => {
@@ -306,6 +353,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       type: "email",
     });
     if (sessionError) return { error: sessionError.message };
+
+    // CRITICAL FIX: Wait for session to be persisted to storage before returning
+    // This prevents race conditions where navigation occurs before storage write completes
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    // Verify session is in storage
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error("Session not found in storage after verifyOtp");
+      return { error: "Session creation failed. Please try again." };
+    }
+
+    console.log("Session created and persisted:", session.user.email);
 
     // Auto-create profile row if first sign-in
     const { data: { user } } = await supabase.auth.getUser();

@@ -1,5 +1,13 @@
 project_id = "oyvumfznbsidngombidu"
 
+[auth]
+# JWT tokens expire after 2 weeks (1209600 seconds)
+# Refresh tokens expire after 60 days
+jwt_expiry = 1209600
+# Enable automatic token refresh
+enable_signup = true
+enable_anonymous_sign_ins = false
+
 [functions.extract-offer-details]
 verify_jwt = false
 

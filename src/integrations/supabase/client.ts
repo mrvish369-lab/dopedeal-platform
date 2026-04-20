@@ -19,5 +19,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: "pkce",
+    
+    // Session will expire after 2 weeks of inactivity
+    // Supabase will auto-refresh tokens before expiry
+    storageKey: "dopedeal-auth-token",
   },
 });
