@@ -11,13 +11,16 @@ import { trackPageView, trackPageExit, trackOfferEvent, trackQrScan } from "@/li
 import { DealsHero } from "@/components/offers/DealsHero";
 import { OfferSearchBar } from "@/components/offers/OfferSearchBar";
 import { SuperDealsButton } from "@/components/offers/SuperDealsButton";
-import { DailyCheckinButton } from "@/components/wallet/DailyCheckinButton";
 import { MoneyMakingSegment } from "@/components/offers/MoneyMakingSegment";
 import { ViralDealsSegment } from "@/components/offers/ViralDealsSegment";
 import { RecommendedForYou } from "@/components/offers/RecommendedForYou";
 import { OfferTrustSection } from "@/components/offers/OfferTrustSection";
 import { OfferFooter } from "@/components/offers/OfferFooter";
 import { SuperDealsPreview } from "@/components/offers/SuperDealsPreview";
+import { PocketMoneySection } from "@/components/deals/PocketMoneySection";
+import { DealSellSection } from "@/components/deals/DealSellSection";
+import { DailyRewardsSection } from "@/components/deals/DailyRewardsSection";
+import { ReferralProgramSection } from "@/components/deals/ReferralProgramSection";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { useCoinRewards } from "@/hooks/useCoinRewards";
 import { useAuth } from "@/contexts/AuthContext";
@@ -274,8 +277,19 @@ const LighterOffers = () => {
       {/* Super Deals Button */}
       <SuperDealsButton />
 
-      {/* Daily Check-in Button - Above Money Making Section */}
-      <DailyCheckinButton />
+      {/* Income Opportunities Sections */}
+      <PocketMoneySection />
+      
+      <DealSellSection />
+      
+      <DailyRewardsSection />
+      
+      <ReferralProgramSection />
+
+      {/* Divider */}
+      <div className="px-4 py-4">
+        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      </div>
 
       {/* Money Making Segment */}
       {moneyMakingCards.length > 0 && (
