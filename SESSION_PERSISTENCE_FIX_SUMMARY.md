@@ -13,11 +13,14 @@ Sessions should persist for 2 weeks (like a mobile app) but were being cleared i
 
 ## Root Cause Identified
 
-### 1. Race Condition in verifyOtp
+### 1. Race Condition in verifyOtp ✅ FIXED
 After calling `supabase.auth.verifyOtp()`, the code immediately returned, allowing navigation to `/dashboard` before the session was fully persisted to localStorage. The navigation occurred before the storage write completed, causing the session to be lost on the next page load.
 
-### 2. Session Restoration Timing Issue
+### 2. Session Restoration Timing Issue ✅ FIXED
 The `onAuthStateChange` listener was set up AFTER calling `getSession()`, potentially missing the restoration event. Also, there was no validation of session expiry on mount.
+
+### 3. Missing Auth Guard (CRITICAL) ✅ FIXED
+**This was the main issue!** The app was rendering protected routes (like `/dashboard`) BEFORE checking if the user was authenticated. Even though the session was being restored from localStorage, the routes rendered immediately, showing the "not logged in" state before the session restoration completed.
 
 ---
 
@@ -32,22 +35,6 @@ The `onAuthStateChange` listener was set up AFTER calling `getSession()`, potent
 - If session is not found, return error: "Session creation failed. Please try again."
 - Added console logging: "Session created and persisted: {email}"
 
-**Code**:
-```typescript
-// CRITICAL FIX: Wait for session to be persisted to storage before returning
-// This prevents race conditions where navigation occurs before storage write completes
-await new Promise(resolve => setTimeout(resolve, 150));
-
-// Verify session is in storage
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) {
-  console.error("Session not found in storage after verifyOtp");
-  return { error: "Session creation failed. Please try again." };
-}
-
-console.log("Session created and persisted:", session.user.email);
-```
-
 ### Fix 2: Improved Session Restoration Flow ✅
 **File**: `src/contexts/AuthContext.tsx`
 
@@ -55,70 +42,82 @@ console.log("Session created and persisted:", session.user.email);
 - Set up `onAuthStateChange` listener BEFORE calling `getSession()` to catch restoration events
 - Added session expiry validation: check `session.expires_at > now`
 - If session is expired, clear it from storage using `supabase.auth.signOut()`
-- Added comprehensive console logging:
-  - "Initializing auth, checking for existing session..."
-  - "Session restored from storage: {email}"
-  - "Session expired, clearing from storage"
-  - "No existing session found"
-  - "Auth state changed: {event} {email}"
+- Added comprehensive console logging
+
+### Fix 3: ProtectedRoute Component (CRITICAL FIX) ✅
+**File**: `src/components/ProtectedRoute.tsx` (NEW)
+
+**This was the missing piece!** Created a proper auth guard component that:
+- Shows loading state while checking authentication (`loading === true`)
+- Waits for AuthContext to finish initializing before rendering
+- Redirects to `/auth/login` if user is not authenticated
+- Only renders protected content after confirming user is logged in
+- Preserves the intended destination for redirect after login
 
 **Code**:
 ```typescript
-// Set up listener BEFORE initializing to catch any events
-const { data: { subscription } } = supabase.auth.onAuthStateChange(
-  async (event, session) => {
-    if (!mounted) return;
-    console.log("Auth state changed:", event, session?.user?.email);
-    // ... rest of handler
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return <LoadingScreen />;
   }
-);
 
-// Initialize after listener is set up
-initializeAuth();
-```
-
-### Fix 3: Session Expiry Validation ✅
-**File**: `src/contexts/AuthContext.tsx`
-
-**Changes**:
-- Verify session is not expired by checking `session.expires_at`
-- Convert Unix timestamp to Date and compare with current time
-- If expired, clear session and log warning
-
-**Code**:
-```typescript
-if (existingSession && !error) {
-  // Verify session is not expired
-  const expiresAt = new Date(existingSession.expires_at! * 1000);
-  const now = new Date();
-  
-  if (expiresAt > now) {
-    console.log("Session restored from storage:", existingSession.user.email);
-    setSession(existingSession);
-    setUser(existingSession.user);
-    // Fetch user data...
-  } else {
-    console.warn("Session expired, clearing from storage");
-    await supabase.auth.signOut();
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
+
+  // User is authenticated, render the protected content
+  return <>{children}</>;
 }
 ```
+
+### Fix 4: Updated App.tsx ✅
+**File**: `src/App.tsx`
+
+**Changes**:
+- Wrapped `/dashboard` route with `<ProtectedRoute>`
+- This ensures dashboard only renders after authentication is confirmed
+
+**Code**:
+```typescript
+<Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
+  <Route path="pocket-money" element={<PocketMoney />} />
+  <Route path="deal-sell" element={<DealSell />} />
+  // ... other nested routes
+</Route>
+```
+
+### Fix 5: Updated Login.tsx ✅
+**File**: `src/pages/auth/Login.tsx`
+
+**Changes**:
+- Redirect to intended destination after login (not always `/dashboard`)
+- Preserve location state for better UX
+- Use `navigate(from, { replace: true })` to redirect back to the page user was trying to access
 
 ---
 
 ## What This Fixes
 
 ### ✅ Page Refresh
-**Before**: User logs in → refreshes page → logged out
-**After**: User logs in → refreshes page → stays logged in
+**Before**: User logs in → refreshes page → Dashboard renders before session check → appears logged out
+**After**: User logs in → refreshes page → Loading screen → Session restored → Dashboard renders with user logged in
 
 ### ✅ Browser Close/Reopen
-**Before**: User logs in → closes browser → reopens → logged out
-**After**: User logs in → closes browser → reopens → stays logged in
+**Before**: User logs in → closes browser → reopens → Dashboard renders before session check → appears logged out
+**After**: User logs in → closes browser → reopens → Loading screen → Session restored → Dashboard renders with user logged in
 
 ### ✅ Browser Back Navigation
-**Before**: User logs in → navigates forward → clicks back → logged out
-**After**: User logs in → navigates forward → clicks back → stays logged in
+**Before**: User logs in → navigates forward → clicks back → Dashboard renders before session check → appears logged out
+**After**: User logs in → navigates forward → clicks back → Session maintained → Dashboard renders with user logged in
+
+### ✅ Direct URL Access to Protected Routes
+**Before**: User types `/dashboard` in URL → Dashboard renders immediately → appears logged out
+**After**: User types `/dashboard` in URL → Loading screen → Session check → If logged in: Dashboard renders, If not: Redirect to login
 
 ### ✅ Token Auto-Refresh
 **Before**: Token approaches 2-week expiry → may not refresh → user logged out
@@ -198,8 +197,11 @@ Open browser DevTools (F12) → Console tab to see session lifecycle logs:
 
 ### Modified Files
 - `src/contexts/AuthContext.tsx` - Session persistence fixes
+- `src/App.tsx` - Added ProtectedRoute wrapper for dashboard
+- `src/pages/auth/Login.tsx` - Redirect to intended destination after login
 
-### New Files (Spec Documentation)
+### New Files
+- `src/components/ProtectedRoute.tsx` - Auth guard component (CRITICAL FIX)
 - `.kiro/specs/session-persistence-fix/bugfix.md` - Bug requirements
 - `.kiro/specs/session-persistence-fix/design.md` - Root cause analysis and fix design
 - `.kiro/specs/session-persistence-fix/tasks.md` - Implementation tasks
@@ -278,7 +280,7 @@ Users now stay logged in for 2 weeks across all navigation scenarios (page refre
 
 ---
 
-**Commit**: 99a4637
+**Commit**: 6af4458 (ProtectedRoute fix), 99a4637 (Session persistence), 6fc7cea (Documentation)
 **Branch**: main
 **Status**: Deployed to GitHub, Vercel auto-deployment in progress
 **Last Updated**: 2026-04-20
@@ -292,6 +294,7 @@ Users now stay logged in for 2 weeks across all navigation scenarios (page refre
 - ✅ No more unexpected logouts on page refresh
 - ✅ No more logouts when closing and reopening browser
 - ✅ No more logouts when navigating back
+- ✅ Proper loading state while checking authentication
 - ✅ Automatic token refresh before expiry
 - ✅ Better user experience - login once, stay logged in
 
@@ -299,9 +302,35 @@ Users now stay logged in for 2 weeks across all navigation scenarios (page refre
 - ✅ Fixed race condition in verifyOtp
 - ✅ Improved session restoration flow
 - ✅ Added session expiry validation
+- ✅ Created ProtectedRoute component for auth guards
 - ✅ Comprehensive console logging for debugging
 - ✅ Better error handling
 - ✅ Proper preservation of existing functionality
+
+---
+
+## 🔍 How to Verify the Fix
+
+After deployment completes:
+
+1. **Open browser DevTools** (F12) → Console tab
+2. **Log in** via Telegram OTP or Email OTP
+3. **Check console** - you should see:
+   ```
+   Session created and persisted: your@email.com
+   Auth state changed: SIGNED_IN your@email.com
+   ```
+4. **Refresh the page** (F5)
+5. **Check console** - you should see:
+   ```
+   Initializing auth, checking for existing session...
+   Session restored from storage: your@email.com
+   ProtectedRoute check: { user: 'your@email.com', loading: false, path: '/dashboard' }
+   ```
+6. **Close browser** completely
+7. **Reopen** and go to the app URL
+8. **Check console** - you should see the same "Session restored" messages
+9. ✅ **You should stay logged in!**
 
 ---
 
