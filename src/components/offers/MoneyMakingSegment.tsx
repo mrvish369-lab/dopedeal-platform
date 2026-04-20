@@ -77,29 +77,29 @@ export const MoneyMakingSegment = ({
   if (cards.length === 0) return null;
 
   return (
-    <section className="py-8">
-      {/* Section Header - Money Making Theme with Glass Effect */}
-      <div className="px-4 mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg backdrop-blur-sm">
-            <TrendingUp className="w-5 h-5 text-white" />
+    <section className="py-12 bg-white">
+      {/* Section Header - Money Making Theme */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-green to-brand-green-dim flex items-center justify-center shadow-md">
+            <TrendingUp className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-              💸 Online Earning Hub
+            <h2 className="font-display font-extrabold text-2xl text-brand-forest flex items-center gap-2">
+              💸 Money Making Offers
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-brand-text-dim">
               Verified ways to make money from your smartphone
             </p>
           </div>
         </div>
         
-        {/* Trust badges with glassmorphism */}
-        <div className="flex gap-2 flex-wrap mt-3">
-          <span className="text-xs px-2 py-1 rounded-full backdrop-blur-md bg-secondary/10 text-secondary border border-secondary/20">
+        {/* Trust badges */}
+        <div className="flex gap-2 flex-wrap">
+          <span className="text-xs px-3 py-1 rounded-full bg-brand-green/10 text-brand-green-dim border border-brand-green/25 font-medium">
             ✓ 100% Verified Methods
           </span>
-          <span className="text-xs px-2 py-1 rounded-full backdrop-blur-md bg-primary/10 text-primary border border-primary/20">
+          <span className="text-xs px-3 py-1 rounded-full bg-brand-green/10 text-brand-green-dim border border-brand-green/25 font-medium">
             🔥 Trending Now
           </span>
         </div>
@@ -107,7 +107,7 @@ export const MoneyMakingSegment = ({
 
       {/* Horizontal Scrollable Cards */}
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-4 px-4 pb-4" style={{ width: "max-content" }}>
+        <div className="flex gap-4 px-4 sm:px-6 pb-4 max-w-7xl mx-auto" style={{ width: "max-content" }}>
           {cards.slice(0, 8).map((card, index) => (
             <div
               key={card.id}
@@ -120,30 +120,20 @@ export const MoneyMakingSegment = ({
               onClick={() => onCardClick(card)}
               className={cn(
                 "group relative flex-shrink-0 w-[300px] rounded-2xl overflow-hidden cursor-pointer",
-                "backdrop-blur-xl bg-card/40 border border-emerald-500/20",
+                "bg-white border-2 border-brand-border",
                 "transition-all duration-300 ease-out",
-                "hover:shadow-2xl hover:-translate-y-2 hover:border-emerald-400/50",
-                "hover:bg-card/60",
-                "active:scale-95",
-                card.glow_enabled && "shadow-[0_0_30px_rgba(16,185,129,0.2)]",
-                card.animation === "breathing" && "pulse-glow"
+                "hover:shadow-xl hover:shadow-brand-green/10 hover:-translate-y-2 hover:border-brand-green",
+                "active:scale-95"
               )}
               style={{
                 animationDelay: `${index * 100}ms`,
               }}
             >
-              {/* Glassmorphic gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-teal-500/10 pointer-events-none" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-              
-              {/* Floating coins decoration */}
-              <div className="absolute top-2 right-2 text-2xl opacity-20 animate-bounce">💰</div>
-
               {/* Card Content */}
               <div className="relative p-5">
                 {/* Logo/Icon */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center overflow-hidden border border-emerald-500/40">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-green/20 to-brand-teal/20 flex items-center justify-center overflow-hidden border border-brand-green/30">
                     {card.logo_url ? (
                       <img
                         src={card.logo_url}
@@ -158,10 +148,10 @@ export const MoneyMakingSegment = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-base line-clamp-1 group-hover:text-emerald-400 transition-colors">
+                    <h3 className="font-bold text-brand-text text-base line-clamp-1 group-hover:text-brand-green-dim transition-colors">
                       {card.title}
                     </h3>
-                    <span className="text-xs text-emerald-400 font-medium">
+                    <span className="text-xs text-brand-green-dim font-medium">
                       Earn from ₹500 - ₹50K/month
                     </span>
                   </div>
@@ -169,13 +159,13 @@ export const MoneyMakingSegment = ({
 
                 {/* Subtitle */}
                 {card.subtitle && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4 min-h-[40px]">
+                  <p className="text-sm text-brand-text-dim line-clamp-2 mb-4 min-h-[40px]">
                     {card.subtitle}
                   </p>
                 )}
 
                 {/* Stats/Benefits */}
-                <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 mb-4 text-xs text-brand-text-faint">
                   <span className="flex items-center gap-1">
                     <Smartphone className="w-3 h-3" /> Mobile Only
                   </span>
@@ -186,7 +176,7 @@ export const MoneyMakingSegment = ({
 
                 {/* CTA Button - Green theme */}
                 <Button
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold gap-2 group-hover:scale-[1.02] transition-transform"
+                  className="w-full bg-gradient-to-r from-brand-green to-brand-green-dim hover:from-brand-green-light hover:to-brand-green text-white font-bold gap-2 group-hover:scale-[1.02] transition-transform"
                   size="sm"
                 >
                   <Zap className="w-4 h-4" />
@@ -201,13 +191,13 @@ export const MoneyMakingSegment = ({
 
       {/* Grid for additional cards */}
       {cards.length > 4 && (
-        <div className="px-4 mt-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
           <div className="grid grid-cols-2 gap-4">
             {cards.slice(4, 8).map((card) => (
               <div
                 key={card.id}
                 onClick={() => onCardClick(card)}
-                className="bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 rounded-xl p-4 cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:shadow-lg active:scale-95"
+                className="bg-white border-2 border-brand-border rounded-xl p-4 cursor-pointer transition-all duration-200 hover:border-brand-green hover:shadow-md hover:shadow-brand-green/10 active:scale-95"
               >
                 <div className="flex items-center gap-2 mb-2">
                   {card.logo_url ? (
@@ -215,9 +205,9 @@ export const MoneyMakingSegment = ({
                   ) : (
                     <span className="text-xl">{getMoneyIcon(card.template_key)}</span>
                   )}
-                  <h3 className="font-semibold text-foreground text-sm line-clamp-1 flex-1">{card.title}</h3>
+                  <h3 className="font-semibold text-brand-text text-sm line-clamp-1 flex-1">{card.title}</h3>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{card.subtitle}</p>
+                <p className="text-xs text-brand-text-dim line-clamp-2">{card.subtitle}</p>
               </div>
             ))}
           </div>
